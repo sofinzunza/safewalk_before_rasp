@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1068399475131",
+    "project_id": "safewalk-sofi",
+    "storage_bucket": "safewalk-sofi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1068399475131:android:7c704b1e6a8329ec6c6c9e",
+        "android_client_info": {
+          "package_name": "com.sofia.safewalk"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1068399475131-f5v87oi723kfgdd2779gt40h0p45c1d6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sofia.safewalk",
+            "certificate_hash": "26ff081334c3528b278a080e8ba725e0d5324863"
+          }
+        },
+        {
+          "client_id": "1068399475131-as0j4flqoj53d95l12qrdtp5nkk67d0t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCg25MTxKbpBGiwuAueUe90gI9Hk5NfuqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1068399475131-as0j4flqoj53d95l12qrdtp5nkk67d0t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1068399475131-rnsuujas0cr7ff8qlgb9f8gt60shme1h.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.sofia.safewalk"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
