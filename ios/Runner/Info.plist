@@ -58,5 +58,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>SafeWalk necesita acceso a Bluetooth para conectarse con tu gorro NaviCap y recibir alertas de obstáculos en tiempo real.</string>
+	
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>SafeWalk usa Bluetooth para comunicarse con dispositivos NaviCap y proporcionar navegación asistida para personas con discapacidad visual.</string>
+	
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SafeWalk necesita acceso a la ubicación para detectar dispositivos NaviCap cercanos vía Bluetooth.</string>
+	
 </dict>
 </plist>

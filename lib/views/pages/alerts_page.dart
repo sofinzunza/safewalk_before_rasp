@@ -20,8 +20,10 @@ class _AlertsPageState extends State<AlertsPage> {
   static const _kStairs = 'alert_stairs';
   static const _kCars = 'alert_cars';
   static const _kMotorcycles = 'alert_motorcycles';
+  static const _kBikes = 'alert_bikes';
   static const _kDogs = 'alert_dogs';
   static const _kTree = 'alert_tree';
+  static const _kDoor = 'alert_tree';
   static const _kEscalator = 'alert_escalator';
   static const _kCrosswalkState = 'alert_crosswalk_state';
 
@@ -35,8 +37,10 @@ class _AlertsPageState extends State<AlertsPage> {
   bool aStairs = false;
   bool aCars = true;
   bool aMotorcycles = false;
+  bool aBikes = false;
   bool aDogs = true;
   bool aTree = false;
+  bool aDoor = true;
   bool aEscalator = false;
   bool aCrosswalkState = true;
 
@@ -59,6 +63,7 @@ class _AlertsPageState extends State<AlertsPage> {
       aStairs = p.getBool(_kStairs) ?? aStairs;
       aCars = p.getBool(_kCars) ?? aCars;
       aMotorcycles = p.getBool(_kMotorcycles) ?? aMotorcycles;
+      aBikes = p.getBool(_kBikes) ?? aBikes;
       aDogs = p.getBool(_kDogs) ?? aDogs;
       aTree = p.getBool(_kTree) ?? aTree;
       aEscalator = p.getBool(_kEscalator) ?? aEscalator;
@@ -202,13 +207,23 @@ class _AlertsPageState extends State<AlertsPage> {
                     },
                   ),
                   _SwitchTile(
-                    icon: Icons.motorcycle,
+                    icon: Icons.motorcycle_rounded,
                     title: 'Alertas de Motos',
                     value: aMotorcycles,
                     activeColor: active,
                     onChanged: (v) {
                       setState(() => aMotorcycles = v);
                       _saveBool(_kMotorcycles, v);
+                    },
+                  ),
+                  _SwitchTile(
+                    icon: Icons.pedal_bike_rounded,
+                    title: 'Alertas de Bicicletas',
+                    value: aBikes,
+                    activeColor: active,
+                    onChanged: (v) {
+                      setState(() => aBikes = v);
+                      _saveBool(_kBikes, v);
                     },
                   ),
                   _SwitchTile(
@@ -229,6 +244,16 @@ class _AlertsPageState extends State<AlertsPage> {
                     onChanged: (v) {
                       setState(() => aTree = v);
                       _saveBool(_kTree, v);
+                    },
+                  ),
+                  _SwitchTile(
+                    icon: Icons.door_sliding,
+                    title: 'Alertas de Puertas',
+                    value: aDoor,
+                    activeColor: active,
+                    onChanged: (v) {
+                      setState(() => aDoor = v);
+                      _saveBool(_kDoor, v);
                     },
                   ),
                   _SwitchTile(
