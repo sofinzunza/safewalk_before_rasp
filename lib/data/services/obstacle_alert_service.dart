@@ -1,0 +1,345 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:vibration/vibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/obstacle_data.dart';
+import '../models/ble_config.dart';
+import 'ble_service.dart';
+
+/// Servicio para manejar alertas de obstáculos con TTS y vibración
+class ObstacleAlertService extends ChangeNotifier {
+  // ---- Instancias de servicios ----
+  final BleService _bleService;
+  final FlutterTts _tts = FlutterTts();
+  
+  // ---- Configuración de alertas ----
+  BleConfig? _currentConfig;
+  bool _isInitialized = false;
+  bool _isSpeaking = false;
+  
+  // ---- Suscripciones ----
+  StreamSubscription<ObstacleData>? _obstacleSubscription;
+  
+  // ---- Control de frecuencia de alertas ----
+  DateTime? _lastAlertTime;
+  String? _lastObstacleType;
+  static const Duration _minAlertInterval = Duration(seconds: 2);
+
+  ObstacleAlertService(this._bleService);
+
+  /// Inicializa el servicio de alertas
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    developer.log('🔔 Inicializando ObstacleAlertService', name: 'AlertService');
+    
+    // Configurar TTS
+    await _setupTts();
+    
+    // Cargar configuración
+    await _loadConfiguration();
+    
+    // Suscribirse a datos de obstáculos
+    _setupObstacleListener();
+    
+    _isInitialized = true;
+    developer.log('✅ ObstacleAlertService inicializado', name: 'AlertService');
+  }
+
+  /// Configura el motor de texto a voz
+  Future<void> _setupTts() async {
+    try {
+      // Configuración básica de TTS
+      await _tts.setLanguage("es-ES"); // Español de España
+      await _tts.setSpeechRate(0.8); // Velocidad normal-lenta para accesibilidad
+      await _tts.setPitch(1.0);
+      
+      // Configurar callbacks
+      _tts.setStartHandler(() {
+        _isSpeaking = true;
+        developer.log('🗣️ TTS iniciado', name: 'AlertService');
+      });
+      
+      _tts.setCompletionHandler(() {
+        _isSpeaking = false;
+        developer.log('✅ TTS completado', name: 'AlertService');
+      });
+      
+      _tts.setErrorHandler((msg) {
+        _isSpeaking = false;
+        developer.log('❌ Error TTS: $msg', name: 'AlertService');
+      });
+      
+      // Probar disponibilidad de idioma
+      final languages = await _tts.getLanguages;
+      if (languages.contains("es-ES")) {
+        await _tts.setLanguage("es-ES");
+      } else if (languages.contains("es-MX")) {
+        await _tts.setLanguage("es-MX");
+      } else if (languages.contains("es-US")) {
+        await _tts.setLanguage("es-US");
+      }
+      
+      developer.log('🎙️ TTS configurado correctamente', name: 'AlertService');
+      
+    } catch (e) {
+      developer.log('❌ Error configurando TTS: $e', name: 'AlertService');
+    }
+  }
+
+  /// Carga configuración desde SharedPreferences
+  Future<void> _loadConfiguration() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsMap = <String, dynamic>{};
+      
+      for (final key in prefs.getKeys()) {
+        final value = prefs.get(key);
+        if (value != null) {
+          prefsMap[key] = value;
+        }
+      }
+      
+      _currentConfig = BleConfig.fromPreferences(prefsMap);
+      await _updateTtsFromConfig();
+      
+      developer.log('⚙️ Configuración cargada: ${_currentConfig.toString()}', 
+                   name: 'AlertService');
+      
+    } catch (e) {
+      developer.log('❌ Error cargando configuración: $e', name: 'AlertService');
+      // Configuración por defecto
+      _currentConfig = const BleConfig(
+        vibration: false,
+        vibrationIntensity: 50,
+        sound: true,
+        volumeIntensity: 50,
+        alertPeople: true,
+        alertStairs: false,
+        alertCars: true,
+        alertMotorcycles: false,
+        alertBikes: false,
+        alertDogs: true,
+        alertTree: false,
+        alertDoor: false,
+        alertEscalator: false,
+        alertCrosswalkState: true,
+      );
+    }
+  }
+
+  /// Actualiza configuración de TTS según config actual
+  Future<void> _updateTtsFromConfig() async {
+    if (_currentConfig == null) return;
+    
+    try {
+      // Configurar volumen basado en intensidad
+      final volume = _currentConfig!.volumeIntensity / 100.0;
+      await _tts.setVolume(volume);
+      
+      developer.log('🔊 Volumen TTS configurado: ${(volume * 100).round()}%', 
+                   name: 'AlertService');
+      
+    } catch (e) {
+      developer.log('❌ Error configurando TTS: $e', name: 'AlertService');
+    }
+  }
+
+  /// Configura listener para datos de obstáculos
+  void _setupObstacleListener() {
+    _obstacleSubscription = _bleService.obstacleDataStream.listen(
+      (obstacleData) => _processObstacleAlert(obstacleData),
+      onError: (error) {
+        developer.log('❌ Error en stream de obstáculos: $error', name: 'AlertService');
+      },
+    );
+  }
+
+  /// Procesa y ejecuta alertas de obstáculos
+  Future<void> _processObstacleAlert(ObstacleData obstacleData) async {
+    if (_currentConfig == null) return;
+    
+    // Verificar si el obstáculo está habilitado
+    if (!_currentConfig!.isObstacleEnabled(obstacleData.obstacle)) {
+      developer.log('⏭️ Obstáculo deshabilitado: ${obstacleData.obstacle}', 
+                   name: 'AlertService');
+      return;
+    }
+    
+    // Verificar rango de distancia
+    if (!_currentConfig!.isDistanceInRange(obstacleData.distance)) {
+      developer.log('📏 Obstáculo fuera de rango: ${obstacleData.distance}m', 
+                   name: 'AlertService');
+      return;
+    }
+    
+    // Control de frecuencia de alertas
+    if (_shouldThrottleAlert(obstacleData)) {
+      return;
+    }
+    
+    developer.log('🚨 Procesando alerta: ${obstacleData.obstacle} a ${obstacleData.distance}m', 
+                 name: 'AlertService');
+    
+    // Ejecutar alertas según configuración
+    final alertTasks = <Future>[];
+    
+    // Alerta de vibración
+    if (_currentConfig!.vibration) {
+      alertTasks.add(_triggerVibration(obstacleData));
+    }
+    
+    // Alerta de sonido/voz
+    if (_currentConfig!.sound) {
+      alertTasks.add(_triggerVoiceAlert(obstacleData));
+    }
+    
+    // Ejecutar alertas en paralelo
+    await Future.wait(alertTasks);
+    
+    // Actualizar tiempo de última alerta
+    _lastAlertTime = DateTime.now();
+    _lastObstacleType = obstacleData.obstacle;
+    
+    notifyListeners();
+  }
+
+  /// Determina si se debe limitar la frecuencia de alertas
+  bool _shouldThrottleAlert(ObstacleData obstacleData) {
+    if (_lastAlertTime == null) return false;
+    
+    final now = DateTime.now();
+    final timeSinceLastAlert = now.difference(_lastAlertTime!);
+    
+    // Si es el mismo tipo de obstáculo y no ha pasado suficiente tiempo
+    if (_lastObstacleType == obstacleData.obstacle && 
+        timeSinceLastAlert < _minAlertInterval) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Ejecuta alerta de vibración
+  Future<void> _triggerVibration(ObstacleData obstacleData) async {
+    try {
+      // Verificar si el dispositivo soporta vibración
+      final hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator != true) {
+        developer.log('📱 Dispositivo sin vibración', name: 'AlertService');
+        return;
+      }
+      
+      // Calcular patrón de vibración según prioridad
+      final priority = obstacleData.getPriority();
+      final intensity = _currentConfig!.vibrationIntensity.round();
+      
+      List<int> pattern;
+      switch (priority) {
+        case AlertPriority.critical:
+          pattern = [0, 500, 100, 500, 100, 500]; // 3 pulsos largos
+          break;
+        case AlertPriority.high:
+          pattern = [0, 300, 100, 300]; // 2 pulsos medianos
+          break;
+        case AlertPriority.medium:
+          pattern = [0, 200]; // 1 pulso corto
+          break;
+        case AlertPriority.low:
+          pattern = [0, 100]; // 1 pulso muy corto
+          break;
+      }
+      
+      // Ejecutar vibración
+      if (await Vibration.hasAmplitudeControl()) {
+        await Vibration.vibrate(pattern: pattern, intensities: [intensity]);
+      } else {
+        await Vibration.vibrate(pattern: pattern);
+      }
+      
+      developer.log('📳 Vibración ejecutada: ${priority.name}', name: 'AlertService');
+      
+    } catch (e) {
+      developer.log('❌ Error en vibración: $e', name: 'AlertService');
+    }
+  }
+
+  /// Ejecuta alerta de voz
+  Future<void> _triggerVoiceAlert(ObstacleData obstacleData) async {
+    try {
+      // No interrumpir si ya está hablando
+      if (_isSpeaking) {
+        developer.log('🗣️ TTS ocupado, saltando alerta', name: 'AlertService');
+        return;
+      }
+      
+      // Obtener mensaje de alerta accesible
+      final message = obstacleData.getAlertMessage();
+      
+      // Ejecutar TTS
+      await _tts.speak(message);
+      
+      developer.log('🗣️ Alerta de voz: $message', name: 'AlertService');
+      
+      // Feedback háptico ligero
+      HapticFeedback.lightImpact();
+      
+    } catch (e) {
+      developer.log('❌ Error en alerta de voz: $e', name: 'AlertService');
+    }
+  }
+
+  /// Actualiza configuración de alertas
+  Future<void> updateConfiguration(BleConfig newConfig) async {
+    _currentConfig = newConfig;
+    await _updateTtsFromConfig();
+    
+    // Enviar nueva configuración a la Raspberry Pi
+    await _bleService.sendConfiguration(newConfig);
+    
+    developer.log('⚙️ Configuración actualizada', name: 'AlertService');
+    notifyListeners();
+  }
+
+  /// Recarga configuración desde SharedPreferences
+  Future<void> reloadConfiguration() async {
+    await _loadConfiguration();
+    notifyListeners();
+  }
+
+  /// Detiene TTS si está hablando
+  Future<void> stopCurrentAlert() async {
+    if (_isSpeaking) {
+      await _tts.stop();
+      _isSpeaking = false;
+    }
+  }
+
+  /// Prueba alerta con datos de ejemplo
+  Future<void> testAlert() async {
+    final testData = ObstacleData(
+      obstacle: 'person',
+      distance: 2.0,
+      confidence: 0.95,
+      timestamp: DateTime.now(),
+    );
+    
+    await _processObstacleAlert(testData);
+  }
+
+  /// Obtiene configuración actual
+  BleConfig? get currentConfig => _currentConfig;
+  
+  /// Verifica si TTS está activo
+  bool get isSpeaking => _isSpeaking;
+
+  @override
+  void dispose() {
+    _obstacleSubscription?.cancel();
+    _tts.stop();
+    super.dispose();
+  }
+}

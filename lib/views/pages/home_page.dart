@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
+import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/views/widgets/multistatebutton_widget.dart';
 import 'package:safewalk/views/widgets/navbar_widget.dart';
 import 'package:safewalk/views/auth_service.dart';
@@ -25,7 +26,7 @@ class _HomePageState extends State<HomePage> {
   bool isBluetoothOn = true;
   bool isAlertsOn = true;
   int bluetoothState = 1; // 0=desconectado, 1=conectado, 2=buscando
-  int alertState = 1; // 0=ambos, 1=sonido, 2=vibración, 3=desactivadas
+  // int alertState = 1; // Removido - ahora usamos el notificador
 
   @override
   void initState() {
@@ -35,10 +36,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
+    final currentAlertState = await AlertUtils.getAlertState();
     setState(() {
       aObstaculos = p.getBool(_kObstacles) ?? aObstaculos;
       eSemaforo = p.getBool(_kSemaforo) ?? eSemaforo;
     });
+    alertStateNotifier.value = currentAlertState;
   }
 
   Future<void> _saveBool(String k, bool v) async {
@@ -112,21 +115,31 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
                     SizedBox(width: 40),
-                    MultiStateButton(
-                      title: 'Alertas',
-                      icons: [
-                        'assets/images/ambas.png',
-                        'assets/images/sonido.png',
-                        'assets/images/vibracion.png',
-                        'assets/images/apagadas.png',
-                      ],
-                      labels: ['Ambos', 'Sonido', 'Vibración', 'Desactivadas'],
-                      currentState: alertState,
-                      borderColor: Colors.black45,
-                      onPressed: () {
-                        setState(() {
-                          alertState = (alertState + 1) % 4;
-                        });
+                    ValueListenableBuilder<int>(
+                      valueListenable: alertStateNotifier,
+                      builder: (context, alertState, child) {
+                        return MultiStateButton(
+                          title: 'Alertas',
+                          icons: [
+                            'assets/images/ambas.png',
+                            'assets/images/sonido.png',
+                            'assets/images/vibracion.png',
+                            'assets/images/apagadas.png',
+                          ],
+                          labels: [
+                            'Ambos',
+                            'Sonido',
+                            'Vibración',
+                            'Desactivadas',
+                          ],
+                          currentState: alertState,
+                          borderColor: Colors.black45,
+                          onPressed: () async {
+                            final newState = (alertState + 1) % 4;
+                            await AlertUtils.setAlertState(newState);
+                            alertStateNotifier.value = newState;
+                          },
+                        );
                       },
                     ),
                   ],

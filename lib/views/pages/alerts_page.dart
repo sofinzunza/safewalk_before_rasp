@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
+import 'package:safewalk/data/alert_utils.dart';
+import 'package:safewalk/data/notifiers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AlertsPage extends StatefulWidget {
@@ -11,10 +13,10 @@ class AlertsPage extends StatefulWidget {
 
 class _AlertsPageState extends State<AlertsPage> {
   // ---- Preferencias (claves) ----
-  static const _kVibration = 'vibration';
-  static const _kVibrationIntensity = 'vibration_intensity'; // 0-100
-  static const _kSound = 'sound';
-  static const _kVolumeIntensity = 'volume_intensity'; // 0-100
+  static const _kVibration = KContanse.vibrationKey;
+  static const _kVibrationIntensity = KContanse.vibrationIntensityKey;
+  static const _kSound = KContanse.soundKey;
+  static const _kVolumeIntensity = KContanse.volumeIntensityKey;
 
   static const _kPeople = 'alert_people';
   static const _kStairs = 'alert_stairs';
@@ -23,9 +25,11 @@ class _AlertsPageState extends State<AlertsPage> {
   static const _kBikes = 'alert_bikes';
   static const _kDogs = 'alert_dogs';
   static const _kTree = 'alert_tree';
-  static const _kDoor = 'alert_tree';
+  static const _kDoor = 'alert_door';
   static const _kEscalator = 'alert_escalator';
   static const _kCrosswalkState = 'alert_crosswalk_state';
+  static const _kMinDistance = 'min_distance'; // metros mínimos
+  static const _kMaxDistance = 'max_distance'; // metros máximos
 
   // ---- Estado ----
   bool vibration = false;
@@ -44,10 +48,35 @@ class _AlertsPageState extends State<AlertsPage> {
   bool aEscalator = false;
   bool aCrosswalkState = true;
 
+  double minDistance = 1.0;
+  double maxDistance = 5.0;
+
   @override
   void initState() {
     super.initState();
     _loadPrefs();
+
+    // Escuchar cambios en el estado de alertas desde otras páginas
+    alertStateNotifier.addListener(_onAlertStateChanged);
+  }
+
+  @override
+  void dispose() {
+    alertStateNotifier.removeListener(_onAlertStateChanged);
+    super.dispose();
+  }
+
+  void _onAlertStateChanged() async {
+    final prefs = await SharedPreferences.getInstance();
+    final newVibration = prefs.getBool(KContanse.vibrationKey) ?? false;
+    final newSound = prefs.getBool(KContanse.soundKey) ?? true;
+
+    if (mounted) {
+      setState(() {
+        vibration = newVibration;
+        sound = newSound;
+      });
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -66,8 +95,21 @@ class _AlertsPageState extends State<AlertsPage> {
       aBikes = p.getBool(_kBikes) ?? aBikes;
       aDogs = p.getBool(_kDogs) ?? aDogs;
       aTree = p.getBool(_kTree) ?? aTree;
+      aDoor = p.getBool(_kDoor) ?? aDoor;
       aEscalator = p.getBool(_kEscalator) ?? aEscalator;
       aCrosswalkState = p.getBool(_kCrosswalkState) ?? aCrosswalkState;
+
+      minDistance = p.getDouble(_kMinDistance) ?? minDistance;
+      maxDistance = p.getDouble(_kMaxDistance) ?? maxDistance;
+
+      if (minDistance < 1.0) minDistance = 1.0;
+      if (minDistance > 3.0) minDistance = 3.0;
+      if (maxDistance < 1.0) maxDistance = 1.0;
+      if (maxDistance > 8.0) maxDistance = 8.0;
+      if (minDistance >= maxDistance) {
+        minDistance = 1.0;
+        maxDistance = 5.0;
+      }
     });
   }
 
@@ -119,9 +161,12 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Vibración',
                     value: vibration,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => vibration = v);
-                      _saveBool(_kVibration, v);
+                      await _saveBool(_kVibration, v);
+                      // Actualizar el estado global de alertas
+                      final newAlertState = await AlertUtils.getAlertState();
+                      alertStateNotifier.value = newAlertState;
                     },
                   ),
                   const SizedBox(height: 8),
@@ -146,9 +191,12 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Sonido',
                     value: sound,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => sound = v);
-                      _saveBool(_kSound, v);
+                      await _saveBool(_kSound, v);
+                      // Actualizar el estado global de alertas
+                      final newAlertState = await AlertUtils.getAlertState();
+                      alertStateNotifier.value = newAlertState;
                     },
                   ),
                   const SizedBox(height: 8),
@@ -167,9 +215,132 @@ class _AlertsPageState extends State<AlertsPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionTitle(
+                    'Configura a qué distancia quieres recibir alertas:',
+                  ),
+                  const SizedBox(height: 8),
 
+                  // Descripción explicativa
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+
+                  // ⭐ Slider para distancia mínima (1.0m - 3.0m)
+                  _DistanceSlider(
+                    label: 'Distancia mínima de alerta:',
+                    value: minDistance,
+                    min: 1.0, // CAMBIADO: antes era 0.5
+                    max: 3.0,
+                    divisions:
+                        4, // CAMBIADO: 4 divisiones para 1.0, 1.5, 2.0, 2.5, 3.0
+                    unit: 'm',
+                    description:
+                        'A partir de esta distancia comenzarás a recibir alertas',
+                    minIcon: Icons.warning_amber_rounded,
+                    maxIcon: Icons.warning_rounded,
+                    activeColor: active,
+                    onChanged: (v) {
+                      setState(() {
+                        minDistance = v;
+                        if (minDistance >= maxDistance) {
+                          maxDistance = minDistance + 1.0;
+                          if (maxDistance > 8.0) maxDistance = 8.0;
+                        }
+                      });
+                      _saveDouble(_kMinDistance, v);
+                      if (minDistance >= maxDistance) {
+                        _saveDouble(_kMaxDistance, maxDistance);
+                      }
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+                  // ⭐ Slider para distancia máxima (1.0m - 8.0m)
+                  _DistanceSlider(
+                    label: 'Distancia máxima de alerta:',
+                    value: maxDistance,
+                    min: 1.0,
+                    max: 8.0,
+                    divisions: 7,
+                    unit: 'm',
+                    description:
+                        'Hasta esta distancia recibirás alertas de obstáculos',
+                    minIcon: Icons.new_releases_outlined,
+                    maxIcon: Icons.new_releases_rounded,
+                    activeColor: active,
+                    onChanged: (v) {
+                      setState(() {
+                        maxDistance = v;
+                        if (maxDistance <= minDistance) {
+                          minDistance = maxDistance - 1.0;
+                          if (minDistance < 1.0) minDistance = 1.0;
+                        }
+                      });
+                      _saveDouble(_kMaxDistance, v);
+                      if (maxDistance <= minDistance) {
+                        _saveDouble(_kMinDistance, minDistance);
+                      }
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Resumen visual del rango
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: KColors.tealOscuro,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Rango de alertas: ${minDistance.toStringAsFixed(1)}m - ${maxDistance.toStringAsFixed(1)}m',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: KColors.tealOscuro,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SwitchTile(
+                    icon: Icons.traffic,
+                    title: 'Alertas de Estado de Semáforo Peatonal',
+                    value: aCrosswalkState,
+                    activeColor: active,
+                    onChanged: (v) {
+                      setState(() => aCrosswalkState = v);
+                      _saveBool(_kCrosswalkState, v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             _Card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,24 +435,6 @@ class _AlertsPageState extends State<AlertsPage> {
                     onChanged: (v) {
                       setState(() => aEscalator = v);
                       _saveBool(_kEscalator, v);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SwitchTile(
-                    icon: Icons.traffic,
-                    title: 'Alertas de Estado de Semáforo Peatonal',
-                    value: aCrosswalkState,
-                    activeColor: active,
-                    onChanged: (v) {
-                      setState(() => aCrosswalkState = v);
-                      _saveBool(_kCrosswalkState, v);
                     },
                   ),
                 ],
@@ -417,6 +570,100 @@ class _LabeledSlider extends StatelessWidget {
             ),
             Icon(maxIcon, size: 22),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+// ⭐ WIDGET: Slider especializado para distancia con NUEVOS RANGOS
+class _DistanceSlider extends StatelessWidget {
+  const _DistanceSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.unit,
+    required this.description,
+    required this.minIcon,
+    required this.maxIcon,
+    required this.activeColor,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String unit;
+  final String description;
+  final IconData minIcon;
+  final IconData maxIcon;
+  final Color activeColor;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          description,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.grey[600],
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(minIcon, size: 22, color: KColors.tealOscuro),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: activeColor,
+                  thumbColor: activeColor,
+                  trackHeight: 4,
+                ),
+                child: Slider(
+                  value: value,
+                  min: min,
+                  max: max,
+                  divisions: divisions,
+                  label: '${value.toStringAsFixed(1)}$unit',
+                  onChanged: onChanged,
+                ),
+              ),
+            ),
+            Icon(maxIcon, size: 22, color: KColors.tealOscuro),
+          ],
+        ),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: activeColor.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              '${value.toStringAsFixed(1)} $unit',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: activeColor,
+                fontSize: 16,
+              ),
+            ),
+          ),
         ),
       ],
     );

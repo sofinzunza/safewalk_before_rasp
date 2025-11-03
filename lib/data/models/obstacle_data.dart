@@ -46,7 +46,7 @@ class ObstacleData {
     return ObstacleData.fromJson(json);
   }
 
-  /// Obtiene el icono apropiado según el tipo de obstáculo
+  /// ✅ Obtiene el icono apropiado según el tipo de obstáculo
   String getObstacleIcon() {
     switch (obstacle.toLowerCase()) {
       case 'person':
@@ -58,6 +58,10 @@ class ObstacleData {
       case 'motorcycle':
       case 'moto':
         return '🏍️';
+      case 'bicycle':
+      case 'bike':
+      case 'bicicleta':
+        return '🚲';
       case 'dog':
       case 'perro':
         return '🐕';
@@ -67,6 +71,9 @@ class ObstacleData {
       case 'stairs':
       case 'escalera':
         return '🪜';
+      case 'door':
+      case 'puerta':
+        return '🚪';
       case 'escalator':
       case 'escalera mecánica':
         return '🚇';
@@ -78,12 +85,12 @@ class ObstacleData {
     }
   }
 
-  /// Obtiene el mensaje de alerta en español para VoiceOver/TalkBack
+  /// ✅ Obtiene el mensaje de alerta en español para VoiceOver/TalkBack
   String getAlertMessage() {
-    final distanceText = distance < 1.0 
+    final distanceText = distance < 1.0
         ? '${(distance * 100).round()} centímetros'
         : '${distance.toStringAsFixed(1)} metros';
-    
+
     String baseMessage;
     switch (obstacle.toLowerCase()) {
       case 'person':
@@ -98,6 +105,11 @@ class ObstacleData {
       case 'moto':
         baseMessage = 'Motocicleta detectada a $distanceText';
         break;
+      case 'bicycle':
+      case 'bike':
+      case 'bicicleta':
+        baseMessage = 'Bicicleta detectada a $distanceText';
+        break;
       case 'dog':
       case 'perro':
         baseMessage = 'Perro detectado a $distanceText';
@@ -110,6 +122,10 @@ class ObstacleData {
       case 'escalera':
         baseMessage = 'Escaleras detectadas a $distanceText';
         break;
+      case 'door':
+      case 'puerta':
+        baseMessage = 'Puerta detectada a $distanceText';
+        break;
       case 'escalator':
       case 'escalera mecánica':
         baseMessage = 'Escalera mecánica detectada a $distanceText';
@@ -120,7 +136,7 @@ class ObstacleData {
 
     // Agregar información del semáforo si está disponible
     if (trafficLight != null) {
-      final trafficMessage = trafficLight == 'green' 
+      final trafficMessage = trafficLight == 'green'
           ? 'Semáforo en verde, puedes pasar'
           : 'Semáforo en rojo, no pases';
       baseMessage += '. $trafficMessage';
@@ -165,23 +181,12 @@ class ObstacleData {
 
   @override
   int get hashCode {
-    return Object.hash(
-      obstacle,
-      distance,
-      confidence,
-      trafficLight,
-      timestamp,
-    );
+    return Object.hash(obstacle, distance, confidence, trafficLight, timestamp);
   }
 }
 
 /// Enum para niveles de prioridad de alertas
-enum AlertPriority {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum AlertPriority { low, medium, high, critical }
 
 /// Extensión para obtener información de prioridad
 extension AlertPriorityExtension on AlertPriority {

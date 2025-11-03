@@ -55,7 +55,7 @@ class _SosButtomState extends State<SosButtom>
         children: [
           AnimatedBuilder(
             animation: _pulse,
-            builder: (_, __) => CustomPaint(
+            builder: (_, _) => CustomPaint(
               painter: SignalPainter(
                 progress: _pulse.value,
                 color: KColors.naranjo,

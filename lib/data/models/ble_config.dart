@@ -2,23 +2,25 @@ import 'dart:convert';
 
 /// Modelo para la configuración BLE que se envía a la Raspberry Pi
 class BleConfig {
-  // Configuraciones de alertas (basadas en alerts_page.dart)
-  final bool vibration;
-  final double vibrationIntensity; // 0-100
-  final bool sound;
-  final double volumeIntensity; // 0-100
+  // Configuraciones de alertas
+  final bool vibration; // 'vibration'
+  final double vibrationIntensity; // 'vibration_intensity' (0-100)
+  final bool sound; // 'sound'
+  final double volumeIntensity; // 'volume_intensity' (0-100)
 
   // Configuraciones de obstáculos específicos
-  final bool alertPeople;
-  final bool alertStairs;
-  final bool alertCars;
-  final bool alertMotorcycles;
-  final bool alertDogs;
-  final bool alertTrees;
-  final bool alertEscalators;
-  final bool alertCrosswalkState;
+  final bool alertPeople; // 'alert_people'
+  final bool alertStairs; // 'alert_stairs'
+  final bool alertCars; // 'alert_cars'
+  final bool alertMotorcycles; // 'alert_motorcycles'
+  final bool alertBikes; // 'alert_bikes'
+  final bool alertDogs; // 'alert_dogs'
+  final bool alertTree; // 'alert_tree'
+  final bool alertDoor; // 'alert_door'
+  final bool alertEscalator; // 'alert_escalator'
+  final bool alertCrosswalkState; // 'alert_crosswalk_state'
 
-  // Configuraciones de distancia
+  // Configuraciones de distancia (para la Raspberry Pi)
   final double minDistance;
   final double maxDistance;
 
@@ -31,30 +33,38 @@ class BleConfig {
     required this.alertStairs,
     required this.alertCars,
     required this.alertMotorcycles,
+    required this.alertBikes,
     required this.alertDogs,
-    required this.alertTrees,
-    required this.alertEscalators,
+    required this.alertTree,
+    required this.alertDoor,
+    required this.alertEscalator,
     required this.alertCrosswalkState,
-    this.minDistance = 0.5,
+    this.minDistance = 1.0,
     this.maxDistance = 5.0,
   });
 
-  /// Factory constructor para crear desde SharedPreferences
+  /// ✅ Factory constructor desde SharedPreferences con CLAVES EXACTAS
   factory BleConfig.fromPreferences(Map<String, dynamic> prefs) {
     return BleConfig(
+      // Configuraciones de alertas
       vibration: prefs['vibration'] ?? false,
       vibrationIntensity: (prefs['vibration_intensity'] ?? 50.0).toDouble(),
       sound: prefs['sound'] ?? true,
       volumeIntensity: (prefs['volume_intensity'] ?? 50.0).toDouble(),
+
+      // Configuraciones de obstáculos (EXACTAS de tu alerts_page.dart)
       alertPeople: prefs['alert_people'] ?? true,
       alertStairs: prefs['alert_stairs'] ?? false,
       alertCars: prefs['alert_cars'] ?? true,
       alertMotorcycles: prefs['alert_motorcycles'] ?? false,
+      alertBikes: prefs['alert_bikes'] ?? false,
       alertDogs: prefs['alert_dogs'] ?? true,
-      alertTrees: prefs['alert_tree'] ?? false,
-      alertEscalators: prefs['alert_escalator'] ?? false,
+      alertTree: prefs['alert_tree'] ?? false,
+      alertDoor: prefs['alert_door'] ?? true,
+      alertEscalator: prefs['alert_escalator'] ?? false,
       alertCrosswalkState: prefs['alert_crosswalk_state'] ?? true,
-      minDistance: (prefs['min_distance'] ?? 0.5).toDouble(),
+
+      minDistance: (prefs['min_distance'] ?? 1.0).toDouble(),
       maxDistance: (prefs['max_distance'] ?? 5.0).toDouble(),
     );
   }
@@ -78,23 +88,25 @@ class BleConfig {
     return jsonEncode(toJson());
   }
 
-  /// Obtiene lista de alertas habilitadas
+  /// ✅ Obtiene lista de alertas habilitadas (SINCRONIZADO con tu UI)
   List<String> _getEnabledAlerts() {
     List<String> enabled = [];
-    
+
     if (alertPeople) enabled.add('person');
     if (alertStairs) enabled.add('stairs');
     if (alertCars) enabled.add('car');
     if (alertMotorcycles) enabled.add('motorcycle');
+    if (alertBikes) enabled.add('bicycle');
     if (alertDogs) enabled.add('dog');
-    if (alertTrees) enabled.add('tree');
-    if (alertEscalators) enabled.add('escalator');
+    if (alertTree) enabled.add('tree');
+    if (alertDoor) enabled.add('door');
+    if (alertEscalator) enabled.add('escalator');
     if (alertCrosswalkState) enabled.add('traffic_light');
-    
+
     return enabled;
   }
 
-  /// Verifica si un tipo de obstáculo está habilitado
+  /// ✅ Verifica si un tipo de obstáculo está habilitado
   bool isObstacleEnabled(String obstacle) {
     switch (obstacle.toLowerCase()) {
       case 'person':
@@ -109,15 +121,22 @@ class BleConfig {
       case 'motorcycle':
       case 'moto':
         return alertMotorcycles;
+      case 'bicycle':
+      case 'bike':
+      case 'bicicleta':
+        return alertBikes;
       case 'dog':
       case 'perro':
         return alertDogs;
       case 'tree':
       case 'árbol':
-        return alertTrees;
+        return alertTree;
+      case 'door':
+      case 'puerta':
+        return alertDoor;
       case 'escalator':
       case 'escalera mecánica':
-        return alertEscalators;
+        return alertEscalator;
       case 'traffic_light':
       case 'semáforo':
         return alertCrosswalkState;
@@ -141,9 +160,11 @@ class BleConfig {
     bool? alertStairs,
     bool? alertCars,
     bool? alertMotorcycles,
+    bool? alertBikes,
     bool? alertDogs,
-    bool? alertTrees,
-    bool? alertEscalators,
+    bool? alertTree,
+    bool? alertDoor,
+    bool? alertEscalator,
     bool? alertCrosswalkState,
     double? minDistance,
     double? maxDistance,
@@ -157,9 +178,11 @@ class BleConfig {
       alertStairs: alertStairs ?? this.alertStairs,
       alertCars: alertCars ?? this.alertCars,
       alertMotorcycles: alertMotorcycles ?? this.alertMotorcycles,
+      alertBikes: alertBikes ?? this.alertBikes,
       alertDogs: alertDogs ?? this.alertDogs,
-      alertTrees: alertTrees ?? this.alertTrees,
-      alertEscalators: alertEscalators ?? this.alertEscalators,
+      alertTree: alertTree ?? this.alertTree,
+      alertDoor: alertDoor ?? this.alertDoor,
+      alertEscalator: alertEscalator ?? this.alertEscalator,
       alertCrosswalkState: alertCrosswalkState ?? this.alertCrosswalkState,
       minDistance: minDistance ?? this.minDistance,
       maxDistance: maxDistance ?? this.maxDistance,
@@ -183,9 +206,11 @@ class BleConfig {
         other.alertStairs == alertStairs &&
         other.alertCars == alertCars &&
         other.alertMotorcycles == alertMotorcycles &&
+        other.alertBikes == alertBikes &&
         other.alertDogs == alertDogs &&
-        other.alertTrees == alertTrees &&
-        other.alertEscalators == alertEscalators &&
+        other.alertTree == alertTree &&
+        other.alertDoor == alertDoor &&
+        other.alertEscalator == alertEscalator &&
         other.alertCrosswalkState == alertCrosswalkState &&
         other.minDistance == minDistance &&
         other.maxDistance == maxDistance;
@@ -202,9 +227,11 @@ class BleConfig {
       alertStairs,
       alertCars,
       alertMotorcycles,
+      alertBikes,
       alertDogs,
-      alertTrees,
-      alertEscalators,
+      alertTree,
+      alertDoor,
+      alertEscalator,
       alertCrosswalkState,
       minDistance,
       maxDistance,

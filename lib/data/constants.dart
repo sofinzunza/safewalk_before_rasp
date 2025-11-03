@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 class KContanse {
   static const String themeModeKey = 'themeModeKey';
+
+  // Constantes compartidas para alertas
+  static const String vibrationKey = 'vibration';
+  static const String soundKey = 'sound';
+  static const String vibrationIntensityKey = 'vibration_intensity';
+  static const String volumeIntensityKey = 'volume_intensity';
 }
 
 class KtextStyle {
@@ -18,9 +24,11 @@ class KtextStyle {
     fontWeight: FontWeight.bold,
   );
 
-  static const TextStyle tittleshort = TextStyle(fontFamily: "DMSans",
-  fontSize: 18.0,
-  fontWeight: FontWeight.w600);
+  static const TextStyle tittleshort = TextStyle(
+    fontFamily: "DMSans",
+    fontSize: 18.0,
+    fontWeight: FontWeight.w600,
+  );
 }
 
 class KColors {
@@ -38,5 +46,5 @@ class KColors {
   static const Color gris = Color(0xFFD9D9D9);
   static const Color darkGray = Color(0xFF434343);
   static const Color lightaqua = Color(0xFFCAE4DE);
-  static const Color bt = Color(0xFF4B7BEC); 
+  static const Color bt = Color(0xFF4B7BEC);
 }

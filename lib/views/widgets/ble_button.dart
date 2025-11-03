@@ -51,7 +51,7 @@ class _BleButtonState extends State<BleButton>
         children: [
           AnimatedBuilder(
             animation: _pulse,
-            builder: (_, __) => CustomPaint(
+            builder: (_, _) => CustomPaint(
               painter: SignalPainter(progress: _pulse.value, color: KColors.bt),
               child: const SizedBox(width: size, height: size),
             ),

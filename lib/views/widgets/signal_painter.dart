@@ -19,8 +19,7 @@ class SignalPainter extends CustomPainter {
       final t = (progress + i * 0.25) % 1.0;
       final radius = maxRadius * (0.2 + 0.8 * t);
       final opacity = (1.0 - t).clamp(0.0, 1.0);
-      // ignore: deprecated_member_use
-      paint.color = color.withOpacity(opacity * 0.6);
+      paint.color = color.withValues(alpha: opacity * 0.6);
       canvas.drawCircle(center, radius, paint);
     }
   }
