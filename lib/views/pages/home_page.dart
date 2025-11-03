@@ -26,7 +26,6 @@ class _HomePageState extends State<HomePage> {
   bool isBluetoothOn = true;
   bool isAlertsOn = true;
   int bluetoothState = 1; // 0=desconectado, 1=conectado, 2=buscando
-  // int alertState = 1; // Removido - ahora usamos el notificador
 
   @override
   void initState() {
