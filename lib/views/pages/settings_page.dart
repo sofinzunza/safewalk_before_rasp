@@ -27,7 +27,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 35),
             Center(
               child: Image.asset(
                 'assets/images/O72.png',
