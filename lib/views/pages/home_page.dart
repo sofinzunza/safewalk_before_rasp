@@ -1,6 +1,10 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/data/alert_utils.dart';
+import 'package:safewalk/data/models/ble_config.dart';
+import 'package:safewalk/data/services/ble_service.dart';
+import 'package:safewalk/data/services/obstacle_alert_service.dart';
 import 'package:safewalk/views/widgets/multistatebutton_widget.dart';
 import 'package:safewalk/views/widgets/navbar_widget.dart';
 import 'package:safewalk/views/auth_service.dart';
@@ -26,13 +30,70 @@ class _HomePageState extends State<HomePage> {
   bool isBluetoothOn = true;
   bool isAlertsOn = true;
   int bluetoothState = 1; // 0=desconectado, 1=conectado, 2=buscando
+  late BleService _bleService;
+  late ObstacleAlertService _obstacleAlertService;
+  bool _servicesInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
+    _initializeBleServices(); 
+  }
+  @override
+  void dispose() {
+    // ✅ LIMPIAR servicios BLE
+    if (_servicesInitialized) {
+      _bleService.dispose();
+      _obstacleAlertService.dispose();
+    }
+    super.dispose();
   }
 
+  // ✅ NUEVA: Inicializar servicios BLE
+  Future<void> _initializeBleServices() async {
+    try {
+      _bleService = BleService();
+      _obstacleAlertService = ObstacleAlertService(_bleService);
+      
+      await _bleService.initialize();
+      await _obstacleAlertService.initialize();
+      
+      _servicesInitialized = true;
+      
+      // Escuchar cambios de estado de conexión BLE REAL
+      _bleService.connectionStateStream.listen((state) {
+        if (mounted) {
+          setState(() {
+            bluetoothState = state;
+          });
+        }
+      });
+      
+      developer.log('✅ Servicios BLE inicializados correctamente', name: 'HomePage');
+      
+    } catch (e) {
+      developer.log('❌ Error inicializando servicios BLE: $e', name: 'HomePage');
+      setState(() {
+        bluetoothState = 0; // Estado desconectado
+      });
+    }
+  }
+
+  // ✅ NUEVA: Manejar cambios en configuración
+  Future<void> _onConfigurationChanged() async {
+    if (!_servicesInitialized) return;
+    
+    try {
+      final prefs = await AlertUtils.getAllPreferences();
+      final config = BleConfig.fromPreferences(prefs);
+      await _obstacleAlertService.updateConfiguration(config);
+      developer.log('📤 Configuración BLE actualizada', name: 'HomePage');
+    } catch (e) {
+      developer.log('❌ Error actualizando configuración BLE: $e', name: 'HomePage');
+    }
+  }
+  
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
     final currentAlertState = await AlertUtils.getAlertState();
@@ -46,6 +107,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _saveBool(String k, bool v) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(k, v);
+    await _onConfigurationChanged();
   }
 
   Widget _buildBodyForIndex(int index) {
@@ -107,10 +169,28 @@ class _HomePageState extends State<HomePage> {
                       labels: ['Desconectado', 'Conectado', 'Buscando'],
                       currentState: bluetoothState,
                       borderColor: Colors.black45,
-                      onPressed: () {
-                        setState(() {
-                          bluetoothState = (bluetoothState + 1) % 3;
-                        });
+                      onPressed: () async {
+                        // ✅ USAR BLE real en lugar de simulado
+                        if (_servicesInitialized) {
+                          try {
+                            await _bleService.toggleConnection();
+                          } catch (e) {
+                            developer.log('❌ Error toggling BLE: $e', name: 'HomePage');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error Bluetooth: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        } else {
+                          // Fallback si los servicios no están listos
+                          setState(() {
+                            bluetoothState = (bluetoothState + 1) % 3;
+                          });
+                        }
                       },
                     ),
                     SizedBox(width: 40),
@@ -137,6 +217,7 @@ class _HomePageState extends State<HomePage> {
                             final newState = (alertState + 1) % 4;
                             await AlertUtils.setAlertState(newState);
                             alertStateNotifier.value = newState;
+                            await _onConfigurationChanged();
                           },
                         );
                       },

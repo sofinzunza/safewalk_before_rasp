@@ -116,11 +116,13 @@ class _AlertsPageState extends State<AlertsPage> {
   Future<void> _saveBool(String k, bool v) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(k, v);
+    await AlertUtils.notifyConfigurationChanged();
   }
 
   Future<void> _saveDouble(String k, double v) async {
     final p = await SharedPreferences.getInstance();
     await p.setDouble(k, v);
+    await AlertUtils.notifyConfigurationChanged();
   }
 
   @override
