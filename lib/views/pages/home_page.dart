@@ -23,7 +23,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   static const _kObstacles = 'alerts_obstacles';
-  static const _kSemaforo = 'estado_semaforo';
 
   bool aObstaculos = true;
   bool eSemaforo = false;
@@ -38,8 +37,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadPrefs();
-    _initializeBleServices(); 
+    _initializeBleServices();
+
+    // ✅ NUEVO: Escuchar cambios en alertas de semáforo desde otras páginas
+    crosswalkAlertsNotifier.addListener(_onCrosswalkAlertsChanged);
   }
+
   @override
   void dispose() {
     // ✅ LIMPIAR servicios BLE
@@ -47,7 +50,17 @@ class _HomePageState extends State<HomePage> {
       _bleService.dispose();
       _obstacleAlertService.dispose();
     }
+    crosswalkAlertsNotifier.removeListener(_onCrosswalkAlertsChanged);
     super.dispose();
+  }
+
+  // ✅ NUEVO: Manejar cambios en alertas de semáforo desde otras páginas
+  void _onCrosswalkAlertsChanged() {
+    if (mounted) {
+      setState(() {
+        eSemaforo = crosswalkAlertsNotifier.value;
+      });
+    }
   }
 
   // ✅ NUEVA: Inicializar servicios BLE
@@ -55,12 +68,12 @@ class _HomePageState extends State<HomePage> {
     try {
       _bleService = BleService();
       _obstacleAlertService = ObstacleAlertService(_bleService);
-      
+
       await _bleService.initialize();
       await _obstacleAlertService.initialize();
-      
+
       _servicesInitialized = true;
-      
+
       // Escuchar cambios de estado de conexión BLE REAL
       _bleService.connectionStateStream.listen((state) {
         if (mounted) {
@@ -69,11 +82,11 @@ class _HomePageState extends State<HomePage> {
           });
         }
       });
-      
-      developer.log('✅ Servicios BLE inicializados correctamente', name: 'HomePage');
-      
     } catch (e) {
-      developer.log('❌ Error inicializando servicios BLE: $e', name: 'HomePage');
+      developer.log(
+        '❌ Error inicializando servicios BLE: $e',
+        name: 'HomePage',
+      );
       setState(() {
         bluetoothState = 0; // Estado desconectado
       });
@@ -82,25 +95,48 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _onConfigurationChanged() async {
     if (!_servicesInitialized) return;
-    
+
     try {
       final prefs = await AlertUtils.getAllPreferences();
       final config = BleConfig.fromPreferences(prefs);
       await _obstacleAlertService.updateConfiguration(config);
       developer.log('📤 Configuración BLE actualizada', name: 'HomePage');
     } catch (e) {
-      developer.log('❌ Error actualizando configuración BLE: $e', name: 'HomePage');
+      developer.log(
+        '❌ Error actualizando configuración BLE: $e',
+        name: 'HomePage',
+      );
     }
   }
-  
+
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
     final currentAlertState = await AlertUtils.getAlertState();
+
+    // ✅ NUEVA LÓGICA: Sincronizar switch de obstáculos con alertas específicas
+    bool obstaclesSwitchValue = p.getBool(_kObstacles) ?? aObstaculos;
+
+    // Verificar si hay alguna alerta de obstáculo activada
+    final hasAnyObstacleAlert = await AlertUtils.hasAnyObstacleAlertEnabled();
+
+    // Si el switch dice que está activado pero no hay alertas específicas activadas,
+    // mantener el switch pero no hay alertas activas
+    // Si hay alertas activadas, el switch debe estar activado
+    if (hasAnyObstacleAlert && !obstaclesSwitchValue) {
+      obstaclesSwitchValue = true;
+      await p.setBool(_kObstacles, true);
+    }
+
+    // ✅ NUEVA LÓGICA: Sincronizar alertas de semáforo
+    final crosswalkState = await AlertUtils.getCrosswalkAlertState();
+
     setState(() {
-      aObstaculos = p.getBool(_kObstacles) ?? aObstaculos;
-      eSemaforo = p.getBool(_kSemaforo) ?? eSemaforo;
+      aObstaculos = obstaclesSwitchValue;
+      eSemaforo = crosswalkState;
     });
     alertStateNotifier.value = currentAlertState;
+    obstacleAlertsEnabledNotifier.value = obstaclesSwitchValue;
+    crosswalkAlertsNotifier.value = crosswalkState;
   }
 
   Future<void> _saveBool(String k, bool v) async {
@@ -173,7 +209,10 @@ class _HomePageState extends State<HomePage> {
                           try {
                             await _bleService.toggleConnection();
                           } catch (e) {
-                            developer.log('❌ Error toggling BLE: $e', name: 'HomePage');
+                            developer.log(
+                              '❌ Error toggling BLE: $e',
+                              name: 'HomePage',
+                            );
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -228,9 +267,21 @@ class _HomePageState extends State<HomePage> {
                   title: 'Alertas de Obstáculos',
                   value: aObstaculos,
                   activeColor: active,
-                  onChanged: (v) {
+                  onChanged: (v) async {
                     setState(() => aObstaculos = v);
-                    _saveBool(_kObstacles, v);
+                    await _saveBool(_kObstacles, v);
+
+                    // ✅ NUEVA FUNCIONALIDAD: Controlar alertas específicas de obstáculos
+                    if (v) {
+                      // Si se activa el switch, reactivar alertas de obstáculos
+                      await AlertUtils.enableObstacleAlerts();
+                    } else {
+                      // Si se desactiva el switch, desactivar TODAS las alertas de obstáculos
+                      await AlertUtils.disableAllObstacleAlerts();
+                    }
+
+                    // Notificar el cambio a otras páginas
+                    obstacleAlertsEnabledNotifier.value = v;
                   },
                 ),
                 _Switch(
@@ -238,9 +289,10 @@ class _HomePageState extends State<HomePage> {
                   title: 'Alertas de estado de semáforos peatonales',
                   value: eSemaforo,
                   activeColor: active,
-                  onChanged: (v) {
+                  onChanged: (v) async {
                     setState(() => eSemaforo = v);
-                    _saveBool(_kSemaforo, v);
+                    // ✅ NUEVO: Usar sistema de sincronización
+                    await AlertUtils.setCrosswalkAlertState(v);
                   },
                 ),
               ],

@@ -27,7 +27,6 @@ class _AlertsPageState extends State<AlertsPage> {
   static const _kTree = 'alert_tree';
   static const _kDoor = 'alert_door';
   static const _kEscalator = 'alert_escalator';
-  static const _kCrosswalkState = 'alert_crosswalk_state';
   static const _kMinDistance = 'min_distance'; // metros mínimos
   static const _kMaxDistance = 'max_distance'; // metros máximos
 
@@ -58,11 +57,19 @@ class _AlertsPageState extends State<AlertsPage> {
 
     // Escuchar cambios en el estado de alertas desde otras páginas
     alertStateNotifier.addListener(_onAlertStateChanged);
+
+    // ✅ NUEVO: Escuchar cambios en el switch maestro de obstáculos
+    obstacleAlertsEnabledNotifier.addListener(_onObstacleAlertsToggled);
+
+    // ✅ NUEVO: Escuchar cambios en alertas de semáforo desde otras páginas
+    crosswalkAlertsNotifier.addListener(_onCrosswalkAlertsChanged);
   }
 
   @override
   void dispose() {
     alertStateNotifier.removeListener(_onAlertStateChanged);
+    obstacleAlertsEnabledNotifier.removeListener(_onObstacleAlertsToggled);
+    crosswalkAlertsNotifier.removeListener(_onCrosswalkAlertsChanged);
     super.dispose();
   }
 
@@ -79,8 +86,29 @@ class _AlertsPageState extends State<AlertsPage> {
     }
   }
 
+  // ✅ NUEVO: Manejar cambios en el switch maestro de obstáculos
+  void _onObstacleAlertsToggled() async {
+    if (mounted) {
+      // Recargar las preferencias para reflejar los cambios
+      await _loadPrefs();
+    }
+  }
+
+  // ✅ NUEVO: Manejar cambios en alertas de semáforo desde otras páginas
+  void _onCrosswalkAlertsChanged() {
+    if (mounted) {
+      setState(() {
+        aCrosswalkState = crosswalkAlertsNotifier.value;
+      });
+    }
+  }
+
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
+
+    // ✅ NUEVO: Obtener estado sincronizado de semáforo
+    final crosswalkState = await AlertUtils.getCrosswalkAlertState();
+
     setState(() {
       vibration = p.getBool(_kVibration) ?? vibration;
       vibrationIntensity =
@@ -97,7 +125,7 @@ class _AlertsPageState extends State<AlertsPage> {
       aTree = p.getBool(_kTree) ?? aTree;
       aDoor = p.getBool(_kDoor) ?? aDoor;
       aEscalator = p.getBool(_kEscalator) ?? aEscalator;
-      aCrosswalkState = p.getBool(_kCrosswalkState) ?? aCrosswalkState;
+      aCrosswalkState = crosswalkState; // ✅ Usar valor sincronizado
 
       minDistance = p.getDouble(_kMinDistance) ?? minDistance;
       maxDistance = p.getDouble(_kMaxDistance) ?? maxDistance;
@@ -334,9 +362,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Estado de Semáforo Peatonal',
                     value: aCrosswalkState,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aCrosswalkState = v);
-                      _saveBool(_kCrosswalkState, v);
+                      // ✅ NUEVO: Usar sistema de sincronización
+                      await AlertUtils.setCrosswalkAlertState(v);
                     },
                   ),
                 ],
@@ -349,7 +378,48 @@ class _AlertsPageState extends State<AlertsPage> {
                 children: [
                   _SectionTitle('Configura las alertas de obstáculos:'),
                   const SizedBox(height: 4),
-                  _SwitchTile(
+
+                  // ✅ NUEVO: Banner informativo cuando las alertas están desactivadas
+                  ValueListenableBuilder<bool>(
+                    valueListenable: obstacleAlertsEnabledNotifier,
+                    builder: (context, obstacleAlertsEnabled, child) {
+                      if (!obstacleAlertsEnabled) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Las alertas de obstáculos están desactivadas desde la página principal. Al reactivarlas se restaurará tu configuración previa.',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+
+                  _ObstacleSwitchTile(
                     icon: Icons.person,
                     title: 'Alertas de Personas',
                     value: aPeople,
@@ -359,7 +429,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kPeople, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.stairs,
                     title: 'Alertas de Escaleras',
                     value: aStairs,
@@ -369,7 +439,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kStairs, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.directions_car,
                     title: 'Alertas de Autos',
                     value: aCars,
@@ -379,7 +449,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kCars, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.motorcycle_rounded,
                     title: 'Alertas de Motos',
                     value: aMotorcycles,
@@ -389,7 +459,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kMotorcycles, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.pedal_bike_rounded,
                     title: 'Alertas de Bicicletas',
                     value: aBikes,
@@ -399,7 +469,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kBikes, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.pets,
                     title: 'Alertas de Perros',
                     value: aDogs,
@@ -409,7 +479,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kDogs, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.park,
                     title: 'Alertas de Árbol',
                     value: aTree,
@@ -419,7 +489,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kTree, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.door_sliding,
                     title: 'Alertas de Puertas',
                     value: aDoor,
@@ -429,7 +499,7 @@ class _AlertsPageState extends State<AlertsPage> {
                       _saveBool(_kDoor, v);
                     },
                   ),
-                  _SwitchTile(
+                  _ObstacleSwitchTile(
                     icon: Icons.escalator,
                     title: 'Alertas de Escaleras Mecánicas',
                     value: aEscalator,
@@ -698,6 +768,48 @@ class _SwitchTile extends StatelessWidget {
         onChanged: onChanged,
         activeTrackColor: activeColor,
       ),
+    );
+  }
+}
+
+// ✅ NUEVO: Switch para alertas de obstáculos que respeta el switch maestro
+class _ObstacleSwitchTile extends StatelessWidget {
+  const _ObstacleSwitchTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    required this.activeColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final Color activeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: obstacleAlertsEnabledNotifier,
+      builder: (context, obstacleAlertsEnabled, child) {
+        final isEnabled = obstacleAlertsEnabled;
+        final displayValue = isEnabled ? value : false;
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          leading: Icon(icon, color: isEnabled ? null : Colors.grey),
+          title: Text(
+            title,
+            style: TextStyle(color: isEnabled ? null : Colors.grey),
+          ),
+          trailing: Switch.adaptive(
+            value: displayValue,
+            onChanged: isEnabled ? onChanged : null,
+            activeTrackColor: activeColor,
+          ),
+        );
+      },
     );
   }
 }

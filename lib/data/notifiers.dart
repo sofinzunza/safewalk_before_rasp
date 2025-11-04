@@ -8,3 +8,9 @@ ValueNotifier<bool> isDarkModeNotifier = ValueNotifier(true);
 ValueNotifier<int> alertStateNotifier = ValueNotifier(
   1,
 ); // Estado inicial: solo sonido
+
+// Notificador para el switch maestro de alertas de obstáculos
+ValueNotifier<bool> obstacleAlertsEnabledNotifier = ValueNotifier(true);
+
+// Notificador para el estado de alertas de semáforo peatonal
+ValueNotifier<bool> crosswalkAlertsNotifier = ValueNotifier(true);

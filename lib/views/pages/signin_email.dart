@@ -315,7 +315,7 @@ class _SigninEmailPageState extends State<SigninEmailPage> {
                   setState(() {
                     _emergencyContact = v ?? false;
                     if (_emergencyContact) {
-                      _visuallyImpaired = false; 
+                      _visuallyImpaired = false;
                     }
                     _checkboxError = '';
                   });

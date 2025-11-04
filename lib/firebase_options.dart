@@ -65,5 +65,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'safewalk-sofi.firebasestorage.app',
     iosBundleId: 'com.example.safewalk',
   );
-
 }

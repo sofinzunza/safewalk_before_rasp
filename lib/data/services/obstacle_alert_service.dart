@@ -14,15 +14,15 @@ class ObstacleAlertService extends ChangeNotifier {
   // ---- Instancias de servicios ----
   final BleService _bleService;
   final FlutterTts _tts = FlutterTts();
-  
+
   // ---- Configuración de alertas ----
   BleConfig? _currentConfig;
   bool _isInitialized = false;
   bool _isSpeaking = false;
-  
+
   // ---- Suscripciones ----
   StreamSubscription<ObstacleData>? _obstacleSubscription;
-  
+
   // ---- Control de frecuencia de alertas ----
   DateTime? _lastAlertTime;
   String? _lastObstacleType;
@@ -33,20 +33,21 @@ class ObstacleAlertService extends ChangeNotifier {
   /// Inicializa el servicio de alertas
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
-    developer.log('🔔 Inicializando ObstacleAlertService', name: 'AlertService');
-    
+
     // Configurar TTS
     await _setupTts();
-    
+
     // Cargar configuración
     await _loadConfiguration();
-    
+
     // Suscribirse a datos de obstáculos
     _setupObstacleListener();
-    
+
     _isInitialized = true;
-    developer.log('✅ ObstacleAlertService inicializado', name: 'AlertService');
+    developer.log(
+      '✅ ObstacleAlertService inicializado',
+      name: 'ObstacleAlertService',
+    );
   }
 
   /// Configura el motor de texto a voz
@@ -54,25 +55,27 @@ class ObstacleAlertService extends ChangeNotifier {
     try {
       // Configuración básica de TTS
       await _tts.setLanguage("es-ES"); // Español de España
-      await _tts.setSpeechRate(0.8); // Velocidad normal-lenta para accesibilidad
+      await _tts.setSpeechRate(
+        0.8,
+      ); // Velocidad normal-lenta para accesibilidad
       await _tts.setPitch(1.0);
-      
+
       // Configurar callbacks
       _tts.setStartHandler(() {
         _isSpeaking = true;
-        developer.log('🗣️ TTS iniciado', name: 'AlertService');
+        developer.log('🗣️ TTS iniciado', name: 'ObstacleAlertService');
       });
-      
+
       _tts.setCompletionHandler(() {
         _isSpeaking = false;
-        developer.log('✅ TTS completado', name: 'AlertService');
+        developer.log('✅ TTS completado', name: 'ObstacleAlertService');
       });
-      
+
       _tts.setErrorHandler((msg) {
         _isSpeaking = false;
-        developer.log('❌ Error TTS: $msg', name: 'AlertService');
+        developer.log('❌ Error TTS: $msg', name: 'ObstacleAlertService');
       });
-      
+
       // Probar disponibilidad de idioma
       final languages = await _tts.getLanguages;
       if (languages.contains("es-ES")) {
@@ -82,11 +85,16 @@ class ObstacleAlertService extends ChangeNotifier {
       } else if (languages.contains("es-US")) {
         await _tts.setLanguage("es-US");
       }
-      
-      developer.log('🎙️ TTS configurado correctamente', name: 'AlertService');
-      
+
+      developer.log(
+        '✅ TTS configurado correctamente',
+        name: 'ObstacleAlertService',
+      );
     } catch (e) {
-      developer.log('❌ Error configurando TTS: $e', name: 'AlertService');
+      developer.log(
+        '❌ Error configurando TTS: $e',
+        name: 'ObstacleAlertService',
+      );
     }
   }
 
@@ -95,22 +103,26 @@ class ObstacleAlertService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final prefsMap = <String, dynamic>{};
-      
+
       for (final key in prefs.getKeys()) {
         final value = prefs.get(key);
         if (value != null) {
           prefsMap[key] = value;
         }
       }
-      
+
       _currentConfig = BleConfig.fromPreferences(prefsMap);
       await _updateTtsFromConfig();
-      
-      developer.log('⚙️ Configuración cargada: ${_currentConfig.toString()}', 
-                   name: 'AlertService');
-      
+
+      developer.log(
+        '⚙️ Configuración cargada: ${_currentConfig.toString()}',
+        name: 'ObstacleAlertService',
+      );
     } catch (e) {
-      developer.log('❌ Error cargando configuración: $e', name: 'AlertService');
+      developer.log(
+        '❌ Error cargando configuración: $e',
+        name: 'ObstacleAlertService',
+      );
       // Configuración por defecto
       _currentConfig = const BleConfig(
         vibration: false,
@@ -134,17 +146,21 @@ class ObstacleAlertService extends ChangeNotifier {
   /// Actualiza configuración de TTS según config actual
   Future<void> _updateTtsFromConfig() async {
     if (_currentConfig == null) return;
-    
+
     try {
       // Configurar volumen basado en intensidad
       final volume = _currentConfig!.volumeIntensity / 100.0;
       await _tts.setVolume(volume);
-      
-      developer.log('🔊 Volumen TTS configurado: ${(volume * 100).round()}%', 
-                   name: 'AlertService');
-      
+
+      developer.log(
+        '🔊 Volumen TTS configurado: ${(volume * 100).round()}%',
+        name: 'ObstacleAlertService',
+      );
     } catch (e) {
-      developer.log('❌ Error configurando TTS: $e', name: 'AlertService');
+      developer.log(
+        '❌ Error configurando TTS: $e',
+        name: 'ObstacleAlertService',
+      );
     }
   }
 
@@ -153,7 +169,10 @@ class ObstacleAlertService extends ChangeNotifier {
     _obstacleSubscription = _bleService.obstacleDataStream.listen(
       (obstacleData) => _processObstacleAlert(obstacleData),
       onError: (error) {
-        developer.log('❌ Error en stream de obstáculos: $error', name: 'AlertService');
+        developer.log(
+          '❌ Error en stream de obstáculos: $error',
+          name: 'ObstacleAlertService',
+        );
       },
     );
   }
@@ -161,65 +180,71 @@ class ObstacleAlertService extends ChangeNotifier {
   /// Procesa y ejecuta alertas de obstáculos
   Future<void> _processObstacleAlert(ObstacleData obstacleData) async {
     if (_currentConfig == null) return;
-    
+
     // Verificar si el obstáculo está habilitado
     if (!_currentConfig!.isObstacleEnabled(obstacleData.obstacle)) {
-      developer.log('⏭️ Obstáculo deshabilitado: ${obstacleData.obstacle}', 
-                   name: 'AlertService');
+      developer.log(
+        '⏭️ Obstáculo deshabilitado: ${obstacleData.obstacle}',
+        name: 'ObstacleAlertService',
+      );
       return;
     }
-    
+
     // Verificar rango de distancia
     if (!_currentConfig!.isDistanceInRange(obstacleData.distance)) {
-      developer.log('📏 Obstáculo fuera de rango: ${obstacleData.distance}m', 
-                   name: 'AlertService');
+      developer.log(
+        '📏 Obstáculo fuera de rango: ${obstacleData.distance}m',
+        name: 'ObstacleAlertService',
+      );
       return;
     }
-    
+
     // Control de frecuencia de alertas
     if (_shouldThrottleAlert(obstacleData)) {
       return;
     }
-    
-    developer.log('🚨 Procesando alerta: ${obstacleData.obstacle} a ${obstacleData.distance}m', 
-                 name: 'AlertService');
-    
+
+    developer.log(
+      '🚨 Procesando alerta: ${obstacleData.obstacle} a ${obstacleData.distance}m',
+      name: 'ObstacleAlertService',
+    );
+
     // Ejecutar alertas según configuración
     final alertTasks = <Future>[];
-    
+
     // Alerta de vibración
     if (_currentConfig!.vibration) {
       alertTasks.add(_triggerVibration(obstacleData));
     }
-    
+
     // Alerta de sonido/voz
     if (_currentConfig!.sound) {
       alertTasks.add(_triggerVoiceAlert(obstacleData));
     }
-    
+
     // Ejecutar alertas en paralelo
     await Future.wait(alertTasks);
-    
+
     // Actualizar tiempo de última alerta
     _lastAlertTime = DateTime.now();
     _lastObstacleType = obstacleData.obstacle;
-    
+
     notifyListeners();
   }
 
   /// Determina si se debe limitar la frecuencia de alertas
   bool _shouldThrottleAlert(ObstacleData obstacleData) {
     if (_lastAlertTime == null) return false;
-    
+
     final now = DateTime.now();
     final timeSinceLastAlert = now.difference(_lastAlertTime!);
-    
+
     // Si es el mismo tipo de obstáculo y no ha pasado suficiente tiempo
-    if (_lastObstacleType == obstacleData.obstacle && 
+    if (_lastObstacleType == obstacleData.obstacle &&
         timeSinceLastAlert < _minAlertInterval) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -229,14 +254,17 @@ class ObstacleAlertService extends ChangeNotifier {
       // Verificar si el dispositivo soporta vibración
       final hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator != true) {
-        developer.log('📱 Dispositivo sin vibración', name: 'AlertService');
+        developer.log(
+          '📱 Dispositivo sin vibración',
+          name: 'ObstacleAlertService',
+        );
         return;
       }
-      
+
       // Calcular patrón de vibración según prioridad
       final priority = obstacleData.getPriority();
       final intensity = _currentConfig!.vibrationIntensity.round();
-      
+
       List<int> pattern;
       switch (priority) {
         case AlertPriority.critical:
@@ -252,18 +280,20 @@ class ObstacleAlertService extends ChangeNotifier {
           pattern = [0, 100]; // 1 pulso muy corto
           break;
       }
-      
+
       // Ejecutar vibración
       if (await Vibration.hasAmplitudeControl()) {
         await Vibration.vibrate(pattern: pattern, intensities: [intensity]);
       } else {
         await Vibration.vibrate(pattern: pattern);
       }
-      
-      developer.log('📳 Vibración ejecutada: ${priority.name}', name: 'AlertService');
-      
+
+      developer.log(
+        '📳 Vibración ejecutada: ${priority.name}',
+        name: 'ObstacleAlertService',
+      );
     } catch (e) {
-      developer.log('❌ Error en vibración: $e', name: 'AlertService');
+      developer.log('❌ Error en vibración: $e', name: 'ObstacleAlertService');
     }
   }
 
@@ -272,23 +302,31 @@ class ObstacleAlertService extends ChangeNotifier {
     try {
       // No interrumpir si ya está hablando
       if (_isSpeaking) {
-        developer.log('🗣️ TTS ocupado, saltando alerta', name: 'AlertService');
+        developer.log(
+          '🗣️ TTS ocupado, saltando alerta',
+          name: 'ObstacleAlertService',
+        );
         return;
       }
-      
+
       // Obtener mensaje de alerta accesible
       final message = obstacleData.getAlertMessage();
-      
+
       // Ejecutar TTS
       await _tts.speak(message);
-      
-      developer.log('🗣️ Alerta de voz: $message', name: 'AlertService');
-      
+
+      developer.log(
+        '🗣️ Alerta de voz: $message',
+        name: 'ObstacleAlertService',
+      );
+
       // Feedback háptico ligero
       HapticFeedback.lightImpact();
-      
     } catch (e) {
-      developer.log('❌ Error en alerta de voz: $e', name: 'AlertService');
+      developer.log(
+        '❌ Error en alerta de voz: $e',
+        name: 'ObstacleAlertService',
+      );
     }
   }
 
@@ -296,11 +334,11 @@ class ObstacleAlertService extends ChangeNotifier {
   Future<void> updateConfiguration(BleConfig newConfig) async {
     _currentConfig = newConfig;
     await _updateTtsFromConfig();
-    
+
     // Enviar nueva configuración a la Raspberry Pi
     await _bleService.sendConfiguration(newConfig);
-    
-    developer.log('⚙️ Configuración actualizada', name: 'AlertService');
+
+    developer.log('⚙️ Configuración actualizada', name: 'ObstacleAlertService');
     notifyListeners();
   }
 
@@ -326,13 +364,13 @@ class ObstacleAlertService extends ChangeNotifier {
       confidence: 0.95,
       timestamp: DateTime.now(),
     );
-    
+
     await _processObstacleAlert(testData);
   }
 
   /// Obtiene configuración actual
   BleConfig? get currentConfig => _currentConfig;
-  
+
   /// Verifica si TTS está activo
   bool get isSpeaking => _isSpeaking;
 

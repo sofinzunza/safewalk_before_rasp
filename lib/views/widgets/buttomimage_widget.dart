@@ -16,7 +16,7 @@ class CustomButton extends StatelessWidget {
     required this.onPressed,
     this.backgroundColor = KColors.tealChillon,
     this.foregroundColor = Colors.white,
-    this.leadingAsset,                 
+    this.leadingAsset,
     this.borderRadius = 30,
     this.minSize = const Size(250, 48),
   });
@@ -39,11 +39,7 @@ class CustomButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (leadingAsset != null) ...[
-            Image.asset(
-              leadingAsset!,
-              width: 22,
-              height: 22,
-            ),
+            Image.asset(leadingAsset!, width: 22, height: 22),
             const SizedBox(width: 12),
           ],
           Text(

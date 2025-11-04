@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/data/notifiers.dart';
+import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/views/pages/start_page.dart';
 import 'package:safewalk/views/auth_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,10 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ✅ NUEVO: Inicializar notifier de semáforo
+  await AlertUtils.initializeCrosswalkNotifier();
+
   runApp(const MainApp());
 }
 

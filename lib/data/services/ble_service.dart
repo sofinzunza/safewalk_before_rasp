@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/obstacle_data.dart';
@@ -10,6 +11,8 @@ import '../models/ble_config.dart';
 
 /// Servicio principal para manejar conectividad BLE con SafeWalk NaviCap
 class BleService extends ChangeNotifier {
+  final FlutterTts _tts = FlutterTts();
+
   // ---- UUIDs del protocolo SafeWalk ----
   static const String _serviceUuid = "12345678-1234-1234-1234-123456789abc";
   static const String _obstacleCharUuid =
@@ -60,6 +63,9 @@ class BleService extends ChangeNotifier {
   Future<void> initialize() async {
     developer.log('🔵 Inicializando BleService', name: 'BleService');
 
+    // ✅ Configurar TTS una sola vez al inicio
+    await _configureTTS();
+
     // Verificar si Bluetooth está disponible
     if (await FlutterBluePlus.adapterState.first ==
         BluetoothAdapterState.unavailable) {
@@ -79,6 +85,28 @@ class BleService extends ChangeNotifier {
       startAutoConnection();
     } else {
       _updateStatus(connectionStateDisconnected, 'Enciende el Bluetooth');
+    }
+  }
+
+  /// Configura el TTS una sola vez al inicio
+  Future<void> _configureTTS() async {
+    try {
+      await _tts.setLanguage("es-ES");
+      await _tts.setSpeechRate(0.5);
+      await _tts.setPitch(1.0);
+      developer.log('🔊 TTS configurado', name: 'BleService');
+    } catch (e) {
+      developer.log("❌ Error configurando TTS: $e", name: "BleService");
+    }
+  }
+
+  Future<void> _speak(String text) async {
+    try {
+      // ✅ Reconfigurar TTS antes de cada speak para asegurar consistency
+      await _tts.setSpeechRate(0.5);
+      await _tts.speak(text);
+    } catch (e) {
+      developer.log("🔇 Error al hablar: $e", name: "BleService");
     }
   }
 
@@ -129,8 +157,13 @@ class BleService extends ChangeNotifier {
     // Intentar reconexión rápida si existe un dispositivo guardado
     if (savedDeviceId != null) {
       try {
-        final device = BluetoothDevice(remoteId: DeviceIdentifier(savedDeviceId));
-        await device.connect(timeout: const Duration(seconds: 5),license: License.free,);
+        final device = BluetoothDevice(
+          remoteId: DeviceIdentifier(savedDeviceId),
+        );
+        await device.connect(
+          timeout: const Duration(seconds: 5),
+          license: License.free,
+        );
         _connectedDevice = device;
 
         _connectionSubscription = device.connectionState.listen((state) {
@@ -145,7 +178,7 @@ class BleService extends ChangeNotifier {
         developer.log('❌ Falló la reconexión rápida: $e', name: 'BleService');
       }
     }
-    
+
     await _startScan();
   }
 
@@ -166,9 +199,12 @@ class BleService extends ChangeNotifier {
       );
 
       // Configurar timer de timeout
-      _scanTimer = Timer(const Duration(seconds: 10), () async{
+      _scanTimer = Timer(const Duration(seconds: 10), () async {
         await _stopScan();
         if (_safeWalkDevices.isEmpty) {
+          await _tts.stop();
+          await Future.delayed(const Duration(milliseconds: 100));
+          _speak("No se encontró ningún dispositivo");
           _updateStatus(connectionStateDisconnected, 'No se encontró NaviCap');
           _scheduleReconnect();
         }
@@ -244,6 +280,10 @@ class BleService extends ChangeNotifier {
         license: License.free,
       );
       _connectedDevice = device;
+      developer.log('✅ Conectado a ${device.platformName}', name: 'BleService');
+      await _tts.stop();
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _speak("Dispositivo conectado");
 
       // Configurar listener de desconexión
       _connectionSubscription = device.connectionState.listen((state) {
@@ -433,6 +473,7 @@ class BleService extends ChangeNotifier {
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       if (!isConnected) {
         developer.log('🔄 Intentando reconectar...', name: 'BleService');
+        _speakWithDelay("Intentando reconectar");
         startAutoConnection();
       }
     });
@@ -479,6 +520,21 @@ class BleService extends ChangeNotifier {
     notifyListeners();
 
     developer.log('📊 Estado: $message ($state)', name: 'BleService');
+
+    // ✅ Detener TTS actual y hablar con una pequeña pausa
+    _speakWithDelay(message);
+  }
+
+  /// Habla el mensaje con una pequeña pausa para asegurar configuración correcta
+  Future<void> _speakWithDelay(String message) async {
+    try {
+      await _tts.stop();
+      // Pequeña pausa para que el TTS procese el stop
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _speak(message);
+    } catch (e) {
+      developer.log("🔇 Error en _speakWithDelay: $e", name: "BleService");
+    }
   }
 
   /// Obtiene estado de conexión para MultiStateButton
