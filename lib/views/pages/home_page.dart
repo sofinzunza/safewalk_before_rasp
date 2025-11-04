@@ -80,7 +80,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ✅ NUEVA: Manejar cambios en configuración
   Future<void> _onConfigurationChanged() async {
     if (!_servicesInitialized) return;
     
@@ -170,7 +169,6 @@ class _HomePageState extends State<HomePage> {
                       currentState: bluetoothState,
                       borderColor: Colors.black45,
                       onPressed: () async {
-                        // ✅ USAR BLE real en lugar de simulado
                         if (_servicesInitialized) {
                           try {
                             await _bleService.toggleConnection();

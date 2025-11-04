@@ -123,6 +123,29 @@ class BleService extends ChangeNotifier {
     );
     _updateStatus(connectionStateSearching, 'Buscando NaviCap...');
 
+    final prefs = await SharedPreferences.getInstance();
+    final savedDeviceId = prefs.getString('last_connected_device');
+
+    // Intentar reconexión rápida si existe un dispositivo guardado
+    if (savedDeviceId != null) {
+      try {
+        final device = BluetoothDevice(remoteId: DeviceIdentifier(savedDeviceId));
+        await device.connect(timeout: const Duration(seconds: 5),license: License.free,);
+        _connectedDevice = device;
+
+        _connectionSubscription = device.connectionState.listen((state) {
+          if (state == BluetoothConnectionState.disconnected) {
+            _onDeviceDisconnected();
+          }
+        });
+
+        await _discoverServices(device);
+        return;
+      } catch (e) {
+        developer.log('❌ Falló la reconexión rápida: $e', name: 'BleService');
+      }
+    }
+    
     await _startScan();
   }
 
@@ -136,21 +159,23 @@ class BleService extends ChangeNotifier {
       notifyListeners();
 
       // Iniciar escaneo dirigido
+      developer.log('🔎 Escaneando dispositivos BLE...', name: 'BleService');
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 15),
+        timeout: const Duration(seconds: 10),
         androidUsesFineLocation: true,
       );
 
       // Configurar timer de timeout
-      _scanTimer = Timer(const Duration(seconds: 15), () {
-        _stopScan();
+      _scanTimer = Timer(const Duration(seconds: 10), () async{
+        await _stopScan();
         if (_safeWalkDevices.isEmpty) {
+          _updateStatus(connectionStateDisconnected, 'No se encontró NaviCap');
           _scheduleReconnect();
         }
       });
 
       // Escuchar resultados del escaneo
-      FlutterBluePlus.scanResults.listen((results) {
+      FlutterBluePlus.scanResults.listen((results) async {
         for (final result in results) {
           final device = result.device;
           final deviceName = device.platformName;
@@ -165,8 +190,11 @@ class BleService extends ChangeNotifier {
             _safeWalkDevices.add(device);
             notifyListeners();
 
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('last_connected_device', device.remoteId.str);
+
             // Conectar automáticamente al primer dispositivo encontrado
-            _connectToDevice(device);
+            await _connectToDevice(device);
             break;
           }
         }
