@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
@@ -41,6 +42,9 @@ class _HomePageState extends State<HomePage> {
 
     // ✅ NUEVO: Escuchar cambios en alertas de semáforo desde otras páginas
     crosswalkAlertsNotifier.addListener(_onCrosswalkAlertsChanged);
+
+    // ✅ NUEVO: Escuchar cambios en alertas específicas para actualizar switch atajo
+    _setupObstacleAlertsListener();
   }
 
   @override
@@ -52,6 +56,27 @@ class _HomePageState extends State<HomePage> {
     }
     crosswalkAlertsNotifier.removeListener(_onCrosswalkAlertsChanged);
     super.dispose();
+  }
+
+  // ✅ NUEVO: Configurar listener para cambios en alertas específicas
+  void _setupObstacleAlertsListener() {
+    // Verificar cada 2 segundos si hay cambios en las alertas específicas
+    Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      final hasAnyAlert = await AlertUtils.hasAnyObstacleAlertEnabled();
+      if (hasAnyAlert != aObstaculos) {
+        setState(() {
+          aObstaculos = hasAnyAlert;
+        });
+        // Actualizar SharedPreferences para mantener consistencia
+        final p = await SharedPreferences.getInstance();
+        await p.setBool(_kObstacles, hasAnyAlert);
+      }
+    });
   }
 
   // ✅ NUEVO: Manejar cambios en alertas de semáforo desde otras páginas
@@ -135,7 +160,7 @@ class _HomePageState extends State<HomePage> {
       eSemaforo = crosswalkState;
     });
     alertStateNotifier.value = currentAlertState;
-    obstacleAlertsEnabledNotifier.value = obstaclesSwitchValue;
+    // ✅ REMOVIDO: obstacleAlertsEnabledNotifier - ya no controla UI
     crosswalkAlertsNotifier.value = crosswalkState;
   }
 
@@ -271,17 +296,12 @@ class _HomePageState extends State<HomePage> {
                     setState(() => aObstaculos = v);
                     await _saveBool(_kObstacles, v);
 
-                    // ✅ NUEVA FUNCIONALIDAD: Controlar alertas específicas de obstáculos
-                    if (v) {
-                      // Si se activa el switch, reactivar alertas de obstáculos
-                      await AlertUtils.enableObstacleAlerts();
-                    } else {
-                      // Si se desactiva el switch, desactivar TODAS las alertas de obstáculos
-                      await AlertUtils.disableAllObstacleAlerts();
-                    }
-
-                    // Notificar el cambio a otras páginas
-                    obstacleAlertsEnabledNotifier.value = v;
+                    // ✅ NUEVO: Solo cambiar valores, no deshabilitar UI
+                    await AlertUtils.setAllObstacleAlertsFromHome(v);
+                    developer.log(
+                      '🏠 Switch obstáculos home: $v (atajo)',
+                      name: 'HomePage',
+                    );
                   },
                 ),
                 _Switch(

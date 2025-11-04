@@ -192,6 +192,40 @@ class AlertUtils {
     return false;
   }
 
+  // ✅ NUEVO: Métodos para el switch "atajo" de home_page (solo cambia valores, no UI)
+
+  /// Desactiva todas las alertas de obstáculos desde home_page (sin deshabilitar UI)
+  /// Solo cambia los valores, alerts_page mantiene control visual
+  static Future<void> setAllObstacleAlertsFromHome(bool enabled) async {
+    if (enabled) {
+      // Si se activa, restaurar desde backup o usar defaults
+      await enableObstacleAlerts();
+    } else {
+      // Si se desactiva, solo cambiar valores (sin backup)
+      await _disableObstacleAlertsQuiet();
+    }
+
+    developer.log(
+      '🏠 Switch home_page cambió alertas de obstáculos: $enabled',
+      name: 'AlertUtils',
+    );
+  }
+
+  /// Desactiva alertas sin guardar backup (para cambios desde home_page)
+  static Future<void> _disableObstacleAlertsQuiet() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    for (final key in _obstacleAlertKeys) {
+      await prefs.setBool(key, false);
+    }
+
+    await notifyConfigurationChanged();
+    developer.log(
+      '🔕 Alertas de obstáculos desactivadas (modo silencioso)',
+      name: 'AlertUtils',
+    );
+  }
+
   /// Limpia los backups de alertas de obstáculos (opcional, para mantenimiento)
   static Future<void> clearObstacleAlertsBackup() async {
     final prefs = await SharedPreferences.getInstance();
