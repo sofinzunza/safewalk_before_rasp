@@ -100,7 +100,7 @@ class _AlertsPageState extends State<AlertsPage> {
             const SizedBox(height: 8),
             Center(
               child: Text(
-                'Configuración\nAvanzada',
+                'Configuración\nde Alertas',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 28.0,
