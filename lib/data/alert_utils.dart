@@ -133,7 +133,6 @@ class AlertUtils {
   static Future<void> enableObstacleAlerts() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // ✅ NUEVO: Intentar restaurar desde backup primero
     bool restoredFromBackup = false;
 
     for (final key in _obstacleAlertKeys) {
@@ -192,10 +191,7 @@ class AlertUtils {
     return false;
   }
 
-  // ✅ NUEVO: Métodos para el switch "atajo" de home_page (solo cambia valores, no UI)
-
-  /// Desactiva todas las alertas de obstáculos desde home_page (sin deshabilitar UI)
-  /// Solo cambia los valores, alerts_page mantiene control visual
+  /// Desactiva todas las alertas de obstáculos desde home_page
   static Future<void> setAllObstacleAlertsFromHome(bool enabled) async {
     if (enabled) {
       // Si se activa, restaurar desde backup o usar defaults
@@ -251,8 +247,6 @@ class AlertUtils {
 
     return false;
   }
-
-  // ✅ NUEVO: Manejo de sincronización de alertas de semáforo peatonal
 
   /// Claves para las alertas de semáforo peatonal (ambas deben estar sincronizadas)
   static const String _homePageCrosswalkKey = 'estado_semaforo';
