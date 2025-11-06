@@ -121,7 +121,6 @@ class _AlertsPageState extends State<AlertsPage> {
                     activeColor: active,
                     onChanged: (v) async {
                       setState(() => aCrosswalkState = v);
-                      // ✅ NUEVO: Usar sistema de sincronización
                       await AlertUtils.setCrosswalkAlertState(v);
                     },
                   ),

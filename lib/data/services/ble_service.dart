@@ -62,8 +62,6 @@ class BleService extends ChangeNotifier {
   /// Inicializa el servicio BLE
   Future<void> initialize() async {
     developer.log('🔵 Inicializando BleService', name: 'BleService');
-
-    // ✅ Configurar TTS una sola vez al inicio
     await _configureTTS();
 
     // Verificar si Bluetooth está disponible
@@ -327,14 +325,8 @@ class BleService extends ChangeNotifier {
           }
 
           if (_obstacleCharacteristic != null) {
-            _updateStatus(
-              connectionStateConnected,
-              'Conectado a ${device.platformName}',
-            );
-
-            // Enviar configuración inicial
+            _updateStatus(connectionStateConnected, 'Conectado a NaviCap');
             await _sendCurrentConfiguration();
-
             developer.log(
               '🧢 NaviCap conectado exitosamente',
               name: 'BleService',
@@ -430,7 +422,7 @@ class BleService extends ChangeNotifier {
       final jsonData = config.toJsonString();
       final bytes = utf8.encode(jsonData);
 
-      await _configCharacteristic!.write(bytes);
+      await _configCharacteristic!.write(bytes, withoutResponse: true);
 
       developer.log(
         '📤 Configuración enviada: ${config.toString()}',
