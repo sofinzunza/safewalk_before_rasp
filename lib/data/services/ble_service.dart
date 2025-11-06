@@ -336,7 +336,7 @@ class BleService extends ChangeNotifier {
             await _sendCurrentConfiguration();
 
             developer.log(
-              '🎉 SafeWalk conectado exitosamente',
+              '🧢 NaviCap conectado exitosamente',
               name: 'BleService',
             );
             return;
@@ -390,9 +390,15 @@ class BleService extends ChangeNotifier {
   /// Procesa datos de obstáculos recibidos
   void _processObstacleData(List<int> data) {
     try {
-      final jsonString = String.fromCharCodes(data);
-      final obstacleData = ObstacleData.fromJsonString(jsonString);
+      if (data.isEmpty) return;
 
+      final jsonString = utf8.decode(data).trim();
+      if (jsonString.isEmpty ||
+          !(jsonString.startsWith('{') && jsonString.endsWith('}'))) {
+        return;
+      }
+
+      final obstacleData = ObstacleData.fromJsonString(jsonString);
       _lastObstacleData = obstacleData;
       _obstacleStreamController.add(obstacleData);
 
