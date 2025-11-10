@@ -11,8 +11,6 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // ✅ NUEVO: Inicializar notifier de semáforo
   await AlertUtils.initializeCrosswalkNotifier();
 
   runApp(const MainApp());
