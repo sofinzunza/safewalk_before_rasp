@@ -197,27 +197,12 @@ class AlertUtils {
       // Si se activa, restaurar desde backup o usar defaults
       await enableObstacleAlerts();
     } else {
-      // Si se desactiva, solo cambiar valores (sin backup)
-      await _disableObstacleAlertsQuiet();
+      // ✅ CAMBIO: Siempre guardar backup antes de desactivar
+      await disableAllObstacleAlerts();
     }
 
     developer.log(
       '🏠 Switch home_page cambió alertas de obstáculos: $enabled',
-      name: 'AlertUtils',
-    );
-  }
-
-  /// Desactiva alertas sin guardar backup (para cambios desde home_page)
-  static Future<void> _disableObstacleAlertsQuiet() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    for (final key in _obstacleAlertKeys) {
-      await prefs.setBool(key, false);
-    }
-
-    await notifyConfigurationChanged();
-    developer.log(
-      '🔕 Alertas de obstáculos desactivadas (modo silencioso)',
       name: 'AlertUtils',
     );
   }

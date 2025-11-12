@@ -70,7 +70,7 @@ class _HomePageState extends State<HomePage> {
       final hasAnyAlert = await AlertUtils.hasAnyObstacleAlertEnabled();
       if (hasAnyAlert != aObstaculos) {
         setState(() {
-          aObstaculos = hasAnyAlert;
+          aObstaculos = true; //hasAnyAlert; (eso tenia antes del true)
         });
         // Actualizar SharedPreferences para mantener consistencia
         final p = await SharedPreferences.getInstance();
