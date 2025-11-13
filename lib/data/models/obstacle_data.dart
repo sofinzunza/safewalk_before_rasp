@@ -46,7 +46,6 @@ class ObstacleData {
     return ObstacleData.fromJson(json);
   }
 
-  /// ✅ Obtiene el icono apropiado según el tipo de obstáculo
   String getObstacleIcon() {
     switch (obstacle.toLowerCase()) {
       case 'person':

@@ -27,7 +27,7 @@ class _SettingsAlertsPageState extends State<SettingsAlertsPage> {
   bool sound = true;
   double volumeIntensity = 50;
 
-  double minDistance = 1.0;
+  double minDistance = 0.5;
   double maxDistance = 5.0;
 
   @override
@@ -69,12 +69,12 @@ class _SettingsAlertsPageState extends State<SettingsAlertsPage> {
       minDistance = p.getDouble(_kMinDistance) ?? minDistance;
       maxDistance = p.getDouble(_kMaxDistance) ?? maxDistance;
 
-      if (minDistance < 1.0) minDistance = 1.0;
+      if (minDistance < 0.5) minDistance = 0.5;
       if (minDistance > 3.0) minDistance = 3.0;
       if (maxDistance < 1.0) maxDistance = 1.0;
       if (maxDistance > 8.0) maxDistance = 8.0;
       if (minDistance >= maxDistance) {
-        minDistance = 1.0;
+        minDistance = 0.5;
         maxDistance = 5.0;
       }
     });
@@ -216,7 +216,7 @@ class _SettingsAlertsPageState extends State<SettingsAlertsPage> {
                   _DistanceSlider(
                     label: 'Distancia mínima de alerta:',
                     value: minDistance,
-                    min: 1.0,
+                    min: 0.5,
                     max: 3.0,
                     divisions: 4,
                     unit: 'm',
@@ -259,7 +259,7 @@ class _SettingsAlertsPageState extends State<SettingsAlertsPage> {
                         maxDistance = v;
                         if (maxDistance <= minDistance) {
                           minDistance = maxDistance - 1.0;
-                          if (minDistance < 1.0) minDistance = 1.0;
+                          if (minDistance < 0.5) minDistance = 0.5;
                         }
                       });
                       _saveDouble(_kMaxDistance, v);

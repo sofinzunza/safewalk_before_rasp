@@ -39,7 +39,7 @@ class BleConfig {
     required this.alertDoor,
     required this.alertEscalator,
     required this.alertCrosswalkState,
-    this.minDistance = 1.0,
+    this.minDistance = 0.5,
     this.maxDistance = 5.0,
   });
 
@@ -64,7 +64,7 @@ class BleConfig {
       alertEscalator: prefs['alert_escalator'] ?? false,
       alertCrosswalkState: prefs['alert_crosswalk_state'] ?? true,
 
-      minDistance: (prefs['min_distance'] ?? 1.0).toDouble(),
+      minDistance: (prefs['min_distance'] ?? 0.5).toDouble(),
       maxDistance: (prefs['max_distance'] ?? 5.0).toDouble(),
     );
   }
