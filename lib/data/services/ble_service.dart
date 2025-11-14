@@ -353,22 +353,62 @@ class BleService extends ChangeNotifier {
     if (_obstacleCharacteristic == null) return;
 
     try {
-      // Habilitar notificaciones
-      await _obstacleCharacteristic!.setNotifyValue(true);
+      // 1) Activar notificaciones en el GATT
+      final ok = await _obstacleCharacteristic!.setNotifyValue(true);
 
-      // Escuchar datos de obstáculos
-      _obstacleSubscription = _obstacleCharacteristic!.lastValueStream.listen(
-        (data) => _processObstacleData(data),
+      developer.log(
+        '🔔 Notificaciones de obstáculos configuradas '
+        '(setNotifyValue=$ok, isNotifying=${_obstacleCharacteristic!.isNotifying})',
+        name: 'BleService',
+      );
+
+      // 2) Hacer un read() inicial para probar que la característica responde
+      try {
+        final initialValue = await _obstacleCharacteristic!.read();
+        if (initialValue.isNotEmpty) {
+          developer.log(
+            '📥 Valor inicial de obstáculo (read): ${utf8.decode(initialValue)}',
+            name: 'BleService',
+          );
+          _processObstacleData(initialValue);
+        } else {
+          developer.log(
+            '📥 Valor inicial de obstáculo vacío (read)',
+            name: 'BleService',
+          );
+        }
+      } catch (e) {
+        developer.log(
+          '⚠️ Error en read() inicial de obstáculo: $e',
+          name: 'BleService',
+        );
+      }
+
+      // 3) Escuchar NOTIFICACIONES reales
+      _obstacleSubscription = _obstacleCharacteristic!.onValueReceived.listen(
+        (data) {
+          developer.log(
+            '📨 Notificación BLE recibida (bytes): $data',
+            name: 'BleService',
+          );
+          _processObstacleData(data);
+        },
         onError: (error) {
           developer.log(
-            '❌ Error en notificaciones: $error',
+            '❌ Error en notificaciones de obstáculos: $error',
+            name: 'BleService',
+          );
+        },
+        onDone: () {
+          developer.log(
+            'ℹ️ Stream de notificaciones de obstáculos cerrado',
             name: 'BleService',
           );
         },
       );
 
       developer.log(
-        '🔔 Notificaciones de obstáculos configuradas',
+        '✅ Listener de notificaciones de obstáculos SUSCRITO (onValueReceived)',
         name: 'BleService',
       );
     } catch (e) {
@@ -379,34 +419,69 @@ class BleService extends ChangeNotifier {
     }
   }
 
-  /// Procesa datos de obstáculos recibidos
+  /// Procesa datos de obstáculos recibidos desde BLE
   void _processObstacleData(List<int> data) {
     try {
       if (data.isEmpty) {
-        developer.log('⚠️ Datos vacíos recibidos', name: 'BleService');
+        developer.log(
+          '⚠️ Datos vacíos recibidos desde BLE',
+          name: 'BleService',
+        );
         return;
       }
-
       final jsonString = utf8.decode(data).trim();
+      final rawString = utf8.decode(data);
+      final trimmed = rawString.trim();
 
-      // ✅ LOG: Ver el JSON crudo recibido
-      developer.log('📦 JSON recibido: $jsonString', name: 'BleService');
-
-      if (jsonString.isEmpty ||
-          !(jsonString.startsWith('{') && jsonString.endsWith('}'))) {
-        developer.log('⚠️ JSON inválido o vacío', name: 'BleService');
+      // Log SIEMPRE lo crudo que llega
+      developer.log(
+        '📦 RAW desde BLE (obstáculo): "$jsonString"',
+        name: 'BleService',
+      );
+      if (jsonString.isEmpty) {
+        developer.log('⚠️ JSON vacío después de trim()', name: 'BleService');
         return;
       }
 
-      final obstacleData = ObstacleData.fromJsonString(jsonString);
-      _lastObstacleData = obstacleData;
+      // Buscar el JSON entre llaves, por si viene con basura
+      final start = trimmed.indexOf('{');
+      final end = trimmed.lastIndexOf('}');
 
-      // ✅ LOG: Confirmar que se agregó al stream
+      if (start == -1 || end == -1 || end <= start) {
+        developer.log(
+          '⚠️ No se encontró JSON válido en: "$trimmed"',
+          name: 'BleService',
+        );
+        return;
+      }
+
+      final cleanJson = trimmed.substring(start, end + 1);
+
       developer.log(
-        '📍 Obstáculo recibido: ${obstacleData.obstacle} a ${obstacleData.distance}m, traffic: ${obstacleData.trafficLight}',
+        '📦 JSON limpio para parsear: $cleanJson',
         name: 'BleService',
       );
 
+      // Intentar parsear el JSON
+      ObstacleData obstacleData;
+      try {
+        obstacleData = ObstacleData.fromJsonString(jsonString);
+      } catch (e) {
+        developer.log(
+          '❌ Error haciendo jsonDecode / ObstacleData.fromJsonString: $e',
+          name: 'BleService',
+        );
+        return;
+      }
+
+      _lastObstacleData = obstacleData;
+      developer.log(
+        '📍 Obstáculo recibido: ${obstacleData.obstacle} '
+        'a ${obstacleData.distance}m, traffic: ${obstacleData.trafficLight}',
+        name: 'BleService',
+      );
+
+      // Empujar al stream para ObstacleAlertService
       _obstacleStreamController.add(obstacleData);
 
       developer.log(

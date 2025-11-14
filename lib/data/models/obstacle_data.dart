@@ -2,43 +2,48 @@ import 'dart:convert';
 
 /// Modelo para los datos de obstáculos enviados desde la Raspberry Pi
 class ObstacleData {
-  final String obstacle;
-  final double distance;
-  final double confidence;
-  final String? trafficLight; // 'red', 'green', o null
-  final DateTime timestamp;
+  final String obstacle; // "door", "person", etc.
+  final double distance; // metros
+  final String? trafficLight; // "red", "green", "unknown"
+  final DateTime timestamp; // ts de la Pi
+  final double? confidence; // opcional (puede venir null)
 
-  const ObstacleData({
+  ObstacleData({
     required this.obstacle,
     required this.distance,
-    required this.confidence,
-    this.trafficLight,
     required this.timestamp,
+    this.trafficLight,
+    this.confidence,
   });
 
-  /// Factory constructor para crear desde JSON recibido vía BLE
+  /// Crea ObstacleData desde un Map JSON
   factory ObstacleData.fromJson(Map<String, dynamic> json) {
     return ObstacleData(
-      obstacle: json['obstacle'] as String? ?? 'unknown',
-      distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
-      // ✅ CAMBIO: confidence es opcional, default 0.8 si no viene
-      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.8,
-      // ✅ CAMBIO: aceptar tanto 'traffic' como 'traffic_light'
-      trafficLight: (json['traffic'] ?? json['traffic_light']) as String?,
-      // ✅ CAMBIO: timestamp puede venir en formato ISO string o epoch
+      obstacle: (json['obstacle'] ?? 'unknown').toString(),
+      distance: (json['distance'] as num? ?? 0).toDouble(),
+      // La Pi manda "traffic", pero dejamos compatibilidad con "traffic_light"
+      trafficLight:
+          json['traffic'] as String? ?? json['traffic_light'] as String?,
       timestamp: _parseTimestamp(json['ts'] ?? json['timestamp']),
+      confidence: (json['confidence'] as num?)?.toDouble(),
     );
+  }
+
+  /// Crea ObstacleData desde el String JSON recibido vía BLE
+  factory ObstacleData.fromJsonString(String jsonString) {
+    final Map<String, dynamic> map =
+        json.decode(jsonString) as Map<String, dynamic>;
+    return ObstacleData.fromJson(map);
   }
 
   /// Helper para parsear timestamp flexible
   static DateTime _parseTimestamp(dynamic ts) {
     if (ts == null) return DateTime.now();
 
-    if (ts is String) {
-      // Formato ISO: "2025-11-13T12:30:45Z"
+    if (ts is String && ts.isNotEmpty) {
       try {
-        return DateTime.parse(ts);
-      } catch (e) {
+        return DateTime.parse(ts); // soporta "2025-11-13T06:18:53Z"
+      } catch (_) {
         return DateTime.now();
       }
     }
@@ -51,21 +56,15 @@ class ObstacleData {
     return DateTime.now();
   }
 
-  /// Convierte a JSON para logging o debugging
+  /// Convierte a JSON (útil para logs/debug)
   Map<String, dynamic> toJson() {
     return {
       'obstacle': obstacle,
       'distance': distance,
-      'confidence': confidence,
-      'traffic_light': trafficLight,
-      'timestamp': timestamp.millisecondsSinceEpoch ~/ 1000,
+      'traffic': trafficLight,
+      'ts': timestamp.toUtc().toIso8601String(),
+      if (confidence != null) 'confidence': confidence,
     };
-  }
-
-  /// Convierte desde String JSON recibido vía BLE
-  factory ObstacleData.fromJsonString(String jsonString) {
-    final Map<String, dynamic> json = jsonDecode(jsonString);
-    return ObstacleData.fromJson(json);
   }
 
   String getObstacleIcon() {
@@ -106,7 +105,7 @@ class ObstacleData {
     }
   }
 
-  /// ✅ Obtiene el mensaje de alerta en español para VoiceOver/TalkBack
+  /// Mensaje de alerta en español para TTS
   String getAlertMessage() {
     final distanceText = distance < 1.0
         ? '${(distance * 100).round()} centímetros'
@@ -155,11 +154,11 @@ class ObstacleData {
         baseMessage = 'Obstáculo detectado a $distanceText';
     }
 
-    // Agregar información del semáforo si está disponible
-    if (trafficLight != null) {
+    // Info de semáforo si existe y no es "unknown"
+    if (trafficLight != null && trafficLight != 'unknown') {
       final trafficMessage = trafficLight == 'green'
-          ? 'Semáforo en verde, puedes pasar'
-          : 'Semáforo en rojo, no pases';
+          ? 'Semáforo en verde, puedes cruzar'
+          : 'Semáforo en rojo, no cruces';
       baseMessage += '. $trafficMessage';
     }
 
@@ -168,14 +167,16 @@ class ObstacleData {
 
   /// Determina si el obstáculo requiere alerta urgente
   bool isUrgent() {
-    return distance < 1.5 && confidence > 0.7;
+    final c = confidence ?? 1.0; // si no hay confianza, asumimos alta
+    return distance < 1.5 && c > 0.7;
   }
 
   /// Determina el nivel de prioridad de la alerta
   AlertPriority getPriority() {
-    if (distance < 1.0 && confidence > 0.8) {
+    final c = confidence ?? 1.0;
+    if (distance < 1.0 && c > 0.8) {
       return AlertPriority.critical;
-    } else if (distance < 2.0 && confidence > 0.6) {
+    } else if (distance < 2.0 && c > 0.6) {
       return AlertPriority.high;
     } else if (distance < 3.0) {
       return AlertPriority.medium;
@@ -186,7 +187,9 @@ class ObstacleData {
 
   @override
   String toString() {
-    return 'ObstacleData(obstacle: $obstacle, distance: ${distance}m, confidence: ${(confidence * 100).round()}%, trafficLight: $trafficLight)';
+    final confPercent = confidence != null ? (confidence! * 100).round() : null;
+    final confText = confPercent != null ? '$confPercent%' : 'n/a';
+    return 'ObstacleData(obstacle: $obstacle, distance: ${distance.toStringAsFixed(2)}m, confidence: $confText, trafficLight: $trafficLight)';
   }
 
   @override
@@ -209,7 +212,6 @@ class ObstacleData {
 /// Enum para niveles de prioridad de alertas
 enum AlertPriority { low, medium, high, critical }
 
-/// Extensión para obtener información de prioridad
 extension AlertPriorityExtension on AlertPriority {
   String get name {
     switch (this) {
@@ -224,7 +226,6 @@ extension AlertPriorityExtension on AlertPriority {
     }
   }
 
-  /// Duración de vibración según prioridad
   Duration get vibrationDuration {
     switch (this) {
       case AlertPriority.low:
@@ -238,7 +239,6 @@ extension AlertPriorityExtension on AlertPriority {
     }
   }
 
-  /// Intensidad de vibración según prioridad
   int get vibrationIntensity {
     switch (this) {
       case AlertPriority.low:
