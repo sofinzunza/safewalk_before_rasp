@@ -166,23 +166,83 @@ class ObstacleAlertService extends ChangeNotifier {
 
   /// Configura listener para datos de obstáculos
   void _setupObstacleListener() {
+    developer.log(
+      '👂 Configurando listener de obstáculos...',
+      name: 'ObstacleAlertService',
+    );
+
     _obstacleSubscription = _bleService.obstacleDataStream.listen(
-      (obstacleData) => _processObstacleAlert(obstacleData),
+      (obstacleData) {
+        developer.log(
+          '📨 Stream recibió: ${obstacleData.obstacle}',
+          name: 'ObstacleAlertService',
+        );
+        _processObstacleAlert(obstacleData);
+      },
       onError: (error) {
         developer.log(
           '❌ Error en stream de obstáculos: $error',
           name: 'ObstacleAlertService',
         );
       },
+      onDone: () {
+        developer.log(
+          '✅ Stream de obstáculos cerrado',
+          name: 'ObstacleAlertService',
+        );
+      },
+    );
+
+    developer.log(
+      '✅ Listener configurado, suscrito: ${_obstacleSubscription != null}',
+      name: 'ObstacleAlertService',
     );
   }
 
   /// Procesa y ejecuta alertas de obstáculos
   Future<void> _processObstacleAlert(ObstacleData obstacleData) async {
-    if (_currentConfig == null) return;
+    developer.log(
+      '🔔 RECIBIDO: ${obstacleData.obstacle} a ${obstacleData.distance}m, traffic: ${obstacleData.trafficLight}',
+      name: 'ObstacleAlertService',
+    );
+
+    if (_currentConfig == null) {
+      developer.log('⚠️ Config es null', name: 'ObstacleAlertService');
+      return;
+    }
+
+    developer.log(
+      '⚙️ Config actual - sound: ${_currentConfig!.sound}, vibration: ${_currentConfig!.vibration}, minDist: ${_currentConfig!.minDistance}, maxDist: ${_currentConfig!.maxDistance}',
+      name: 'ObstacleAlertService',
+    );
+
+    // ✅ NUEVO: Procesar alertas de semáforo independientemente
+    if (obstacleData.trafficLight != null &&
+        obstacleData.trafficLight != 'unknown') {
+      developer.log(
+        '🚦 Procesando semáforo: ${obstacleData.trafficLight}',
+        name: 'ObstacleAlertService',
+      );
+      await _processTrafficLightAlert(obstacleData);
+    }
+
+    // Si el obstáculo es 'none' o 'ready', no alertar
+    if (obstacleData.obstacle == 'none' || obstacleData.obstacle == 'ready') {
+      developer.log(
+        '⏭️ Obstáculo ignorado: ${obstacleData.obstacle}',
+        name: 'ObstacleAlertService',
+      );
+      return;
+    }
 
     // Verificar si el obstáculo está habilitado
-    if (!_currentConfig!.isObstacleEnabled(obstacleData.obstacle)) {
+    final isEnabled = _currentConfig!.isObstacleEnabled(obstacleData.obstacle);
+    developer.log(
+      '🔍 Obstáculo "${obstacleData.obstacle}" habilitado: $isEnabled',
+      name: 'ObstacleAlertService',
+    );
+
+    if (!isEnabled) {
       developer.log(
         '⏭️ Obstáculo deshabilitado: ${obstacleData.obstacle}',
         name: 'ObstacleAlertService',
@@ -191,7 +251,13 @@ class ObstacleAlertService extends ChangeNotifier {
     }
 
     // Verificar rango de distancia
-    if (!_currentConfig!.isDistanceInRange(obstacleData.distance)) {
+    final inRange = _currentConfig!.isDistanceInRange(obstacleData.distance);
+    developer.log(
+      '📏 Distancia ${obstacleData.distance}m en rango [${_currentConfig!.minDistance}-${_currentConfig!.maxDistance}]: $inRange',
+      name: 'ObstacleAlertService',
+    );
+
+    if (!inRange) {
       developer.log(
         '📏 Obstáculo fuera de rango: ${obstacleData.distance}m',
         name: 'ObstacleAlertService',
@@ -201,11 +267,12 @@ class ObstacleAlertService extends ChangeNotifier {
 
     // Control de frecuencia de alertas
     if (_shouldThrottleAlert(obstacleData)) {
+      developer.log('⏱️ Alerta throttled', name: 'ObstacleAlertService');
       return;
     }
 
     developer.log(
-      '🚨 Procesando alerta: ${obstacleData.obstacle} a ${obstacleData.distance}m',
+      '🚨 EJECUTANDO ALERTA: ${obstacleData.obstacle} a ${obstacleData.distance}m',
       name: 'ObstacleAlertService',
     );
 
@@ -214,11 +281,13 @@ class ObstacleAlertService extends ChangeNotifier {
 
     // Alerta de vibración
     if (_currentConfig!.vibration) {
+      developer.log('📳 Agregando vibración', name: 'ObstacleAlertService');
       alertTasks.add(_triggerVibration(obstacleData));
     }
 
     // Alerta de sonido/voz
     if (_currentConfig!.sound) {
+      developer.log('🔊 Agregando TTS', name: 'ObstacleAlertService');
       alertTasks.add(_triggerVoiceAlert(obstacleData));
     }
 
@@ -230,6 +299,44 @@ class ObstacleAlertService extends ChangeNotifier {
     _lastObstacleType = obstacleData.obstacle;
 
     notifyListeners();
+  }
+
+  /// ✅ NUEVO: Procesar alertas de semáforo
+  Future<void> _processTrafficLightAlert(ObstacleData obstacleData) async {
+    // Verificar si las alertas de semáforo están habilitadas
+    if (!_currentConfig!.alertCrosswalkState) {
+      return;
+    }
+
+    // Solo alertar si hay un obstáculo cerca Y el semáforo está en rojo
+    if (obstacleData.trafficLight == 'red') {
+      developer.log(
+        '🚦 Semáforo en rojo detectado',
+        name: 'ObstacleAlertService',
+      );
+
+      // Alerta de voz para semáforo
+      if (_currentConfig!.sound && !_isSpeaking) {
+        await _tts.speak('Semáforo en rojo, no cruces');
+        HapticFeedback.mediumImpact();
+      }
+
+      // Vibración para semáforo
+      if (_currentConfig!.vibration) {
+        await Vibration.vibrate(pattern: [0, 200, 100, 200]);
+      }
+    } else if (obstacleData.trafficLight == 'green') {
+      developer.log(
+        '🚦 Semáforo en verde detectado',
+        name: 'ObstacleAlertService',
+      );
+
+      // Solo informar si está configurado para dar info positiva
+      if (_currentConfig!.sound && !_isSpeaking) {
+        await _tts.speak('Semáforo en verde, puedes cruzar');
+        HapticFeedback.lightImpact();
+      }
+    }
   }
 
   /// Determina si se debe limitar la frecuencia de alertas

@@ -19,14 +19,36 @@ class ObstacleData {
   /// Factory constructor para crear desde JSON recibido vía BLE
   factory ObstacleData.fromJson(Map<String, dynamic> json) {
     return ObstacleData(
-      obstacle: json['obstacle'] as String,
-      distance: (json['distance'] as num).toDouble(),
-      confidence: (json['confidence'] as num).toDouble(),
-      trafficLight: json['traffic_light'] as String?,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-        (json['timestamp'] as num).toInt() * 1000,
-      ),
+      obstacle: json['obstacle'] as String? ?? 'unknown',
+      distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
+      // ✅ CAMBIO: confidence es opcional, default 0.8 si no viene
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.8,
+      // ✅ CAMBIO: aceptar tanto 'traffic' como 'traffic_light'
+      trafficLight: (json['traffic'] ?? json['traffic_light']) as String?,
+      // ✅ CAMBIO: timestamp puede venir en formato ISO string o epoch
+      timestamp: _parseTimestamp(json['ts'] ?? json['timestamp']),
     );
+  }
+
+  /// Helper para parsear timestamp flexible
+  static DateTime _parseTimestamp(dynamic ts) {
+    if (ts == null) return DateTime.now();
+
+    if (ts is String) {
+      // Formato ISO: "2025-11-13T12:30:45Z"
+      try {
+        return DateTime.parse(ts);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    if (ts is num) {
+      // Epoch en segundos
+      return DateTime.fromMillisecondsSinceEpoch(ts.toInt() * 1000);
+    }
+
+    return DateTime.now();
   }
 
   /// Convierte a JSON para logging o debugging

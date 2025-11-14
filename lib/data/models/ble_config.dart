@@ -108,9 +108,11 @@ class BleConfig {
 
   /// ✅ Verifica si un tipo de obstáculo está habilitado
   bool isObstacleEnabled(String obstacle) {
-    switch (obstacle.toLowerCase()) {
+    final normalized = obstacle.toLowerCase().trim();
+    switch (normalized) {
       case 'person':
       case 'people':
+      case 'persona':
         return alertPeople;
       case 'stairs':
       case 'escalera':
@@ -130,17 +132,27 @@ class BleConfig {
         return alertDogs;
       case 'tree':
       case 'árbol':
+      case 'arbol':
         return alertTree;
       case 'door':
       case 'puerta':
         return alertDoor;
       case 'escalator':
       case 'escalera mecánica':
+      case 'escalera_mecanica':
         return alertEscalator;
       case 'traffic_light':
       case 'semáforo':
+      case 'semaforo':
+      case 'semaforo de transito':
         return alertCrosswalkState;
+      // Ignorar estados especiales
+      case 'none':
+      case 'ready':
+      case 'unknown':
+        return false;
       default:
+        // ✅ LOG: Alertar sobre obstáculos no mapeados
         return false;
     }
   }

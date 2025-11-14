@@ -382,27 +382,42 @@ class BleService extends ChangeNotifier {
   /// Procesa datos de obstáculos recibidos
   void _processObstacleData(List<int> data) {
     try {
-      if (data.isEmpty) return;
+      if (data.isEmpty) {
+        developer.log('⚠️ Datos vacíos recibidos', name: 'BleService');
+        return;
+      }
 
       final jsonString = utf8.decode(data).trim();
+
+      // ✅ LOG: Ver el JSON crudo recibido
+      developer.log('📦 JSON recibido: $jsonString', name: 'BleService');
+
       if (jsonString.isEmpty ||
           !(jsonString.startsWith('{') && jsonString.endsWith('}'))) {
+        developer.log('⚠️ JSON inválido o vacío', name: 'BleService');
         return;
       }
 
       final obstacleData = ObstacleData.fromJsonString(jsonString);
       _lastObstacleData = obstacleData;
+
+      // ✅ LOG: Confirmar que se agregó al stream
+      developer.log(
+        '📍 Obstáculo recibido: ${obstacleData.obstacle} a ${obstacleData.distance}m, traffic: ${obstacleData.trafficLight}',
+        name: 'BleService',
+      );
+
       _obstacleStreamController.add(obstacleData);
 
       developer.log(
-        '📍 Obstáculo recibido: ${obstacleData.obstacle} a ${obstacleData.distance}m',
+        '✅ Obstáculo agregado al stream, listeners: ${_obstacleStreamController.hasListener}',
         name: 'BleService',
       );
 
       notifyListeners();
-    } catch (e) {
+    } catch (e, stackTrace) {
       developer.log(
-        '❌ Error procesando datos de obstáculo: $e',
+        '❌ Error procesando datos de obstáculo: $e\n$stackTrace',
         name: 'BleService',
       );
     }
