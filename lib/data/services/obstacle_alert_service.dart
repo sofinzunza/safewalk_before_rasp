@@ -63,12 +63,10 @@ class ObstacleAlertService extends ChangeNotifier {
       // Configurar callbacks
       _tts.setStartHandler(() {
         _isSpeaking = true;
-        developer.log('🗣️ TTS iniciado', name: 'ObstacleAlertService');
       });
 
       _tts.setCompletionHandler(() {
         _isSpeaking = false;
-        developer.log('✅ TTS completado', name: 'ObstacleAlertService');
       });
 
       _tts.setErrorHandler((msg) {
