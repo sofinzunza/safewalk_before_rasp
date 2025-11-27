@@ -30,6 +30,8 @@ class BleService extends ChangeNotifier {
   BluetoothCharacteristic? _configCharacteristic;
   StreamSubscription? _obstacleSubscription;
   StreamSubscription? _connectionSubscription;
+  StreamSubscription? _bluetoothStateSubscription;
+  StreamSubscription? _scanResultsSubscription;
   Timer? _reconnectTimer;
   Timer? _scanTimer;
 
@@ -54,6 +56,7 @@ class BleService extends ChangeNotifier {
       StreamController<ObstacleData>.broadcast();
   final StreamController<int> _connectionStateController =
       StreamController<int>.broadcast();
+  bool _isDisposed = false;
 
   Stream<ObstacleData> get obstacleDataStream =>
       _obstacleStreamController.stream;
@@ -61,6 +64,7 @@ class BleService extends ChangeNotifier {
 
   /// Inicializa el servicio BLE
   Future<void> initialize() async {
+    if (_isDisposed) return;
     developer.log('🔵 Inicializando BleService', name: 'BleService');
     await _configureTTS();
 
@@ -125,7 +129,8 @@ class BleService extends ChangeNotifier {
 
   /// Configura el listener de estado de Bluetooth
   void _setupBluetoothStateListener() {
-    FlutterBluePlus.adapterState.listen((state) {
+    _bluetoothStateSubscription = FlutterBluePlus.adapterState.listen((state) {
+      if (_isDisposed) return;
       developer.log('📡 Estado Bluetooth: $state', name: 'BleService');
 
       if (state == BluetoothAdapterState.on) {
@@ -141,7 +146,7 @@ class BleService extends ChangeNotifier {
 
   /// Inicia conexión automática con dispositivos SafeWalk
   Future<void> startAutoConnection() async {
-    if (_isScanning || isConnected) return;
+    if (_isDisposed || _isScanning || isConnected) return;
 
     developer.log(
       '🔍 Iniciando búsqueda automática SafeWalk',
@@ -182,7 +187,7 @@ class BleService extends ChangeNotifier {
 
   /// Escanea dispositivos SafeWalk cercanos
   Future<void> _startScan() async {
-    if (_isScanning) return;
+    if (_isDisposed || _isScanning) return;
 
     try {
       _isScanning = true;
@@ -198,6 +203,7 @@ class BleService extends ChangeNotifier {
 
       // Configurar timer de timeout
       _scanTimer = Timer(const Duration(seconds: 10), () async {
+        if (_isDisposed) return;
         await _stopScan();
         if (_safeWalkDevices.isEmpty) {
           await _tts.stop();
@@ -209,7 +215,10 @@ class BleService extends ChangeNotifier {
       });
 
       // Escuchar resultados del escaneo
-      FlutterBluePlus.scanResults.listen((results) async {
+      _scanResultsSubscription = FlutterBluePlus.scanResults.listen((
+        results,
+      ) async {
+        if (_isDisposed) return;
         for (final result in results) {
           final device = result.device;
           final deviceName = device.platformName;
@@ -253,7 +262,7 @@ class BleService extends ChangeNotifier {
 
   /// Detiene el escaneo
   Future<void> _stopScan() async {
-    if (!_isScanning) return;
+    if (_isDisposed || !_isScanning) return;
 
     _isScanning = false;
     _scanTimer?.cancel();
@@ -263,7 +272,7 @@ class BleService extends ChangeNotifier {
 
   /// Conecta a un dispositivo específico
   Future<void> _connectToDevice(BluetoothDevice device) async {
-    if (isConnected) return;
+    if (_isDisposed || isConnected) return;
 
     try {
       await _stopScan();
@@ -421,6 +430,7 @@ class BleService extends ChangeNotifier {
 
   /// Procesa datos de obstáculos recibidos desde BLE
   void _processObstacleData(List<int> data) {
+    if (_isDisposed) return;
     try {
       if (data.isEmpty) {
         developer.log(
@@ -482,12 +492,13 @@ class BleService extends ChangeNotifier {
       );
 
       // Empujar al stream para ObstacleAlertService
-      _obstacleStreamController.add(obstacleData);
-
-      developer.log(
-        '✅ Obstáculo agregado al stream, listeners: ${_obstacleStreamController.hasListener}',
-        name: 'BleService',
-      );
+      if (!_obstacleStreamController.isClosed) {
+        _obstacleStreamController.add(obstacleData);
+        developer.log(
+          '✅ Obstáculo agregado al stream, listeners: ${_obstacleStreamController.hasListener}',
+          name: 'BleService',
+        );
+      }
 
       notifyListeners();
     } catch (e, stackTrace) {
@@ -549,6 +560,7 @@ class BleService extends ChangeNotifier {
 
   /// Maneja desconexión del dispositivo
   void _onDeviceDisconnected() {
+    if (_isDisposed) return;
     developer.log('📱 Dispositivo desconectado', name: 'BleService');
     _cleanup();
     _updateStatus(connectionStateDisconnected, 'Dispositivo desconectado');
@@ -557,13 +569,13 @@ class BleService extends ChangeNotifier {
 
   /// Programa reconexión automática
   void _scheduleReconnect() {
+    if (_isDisposed) return;
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
-      if (!isConnected) {
-        developer.log('🔄 Intentando reconectar...', name: 'BleService');
-        _speakWithDelay("Intentando reconectar");
-        startAutoConnection();
-      }
+      if (_isDisposed || isConnected) return;
+      developer.log('🔄 Intentando reconectar...', name: 'BleService');
+      _speakWithDelay("Intentando reconectar");
+      startAutoConnection();
     });
   }
 
@@ -602,9 +614,12 @@ class BleService extends ChangeNotifier {
 
   /// Actualiza estado y notifica listeners
   void _updateStatus(int state, String message) {
+    if (_isDisposed) return;
     _connectionState = state;
     _statusMessage = message;
-    _connectionStateController.add(state);
+    if (!_connectionStateController.isClosed) {
+      _connectionStateController.add(state);
+    }
     notifyListeners();
 
     developer.log('📊 Estado: $message ($state)', name: 'BleService');
@@ -648,11 +663,28 @@ class BleService extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+
+    // Cancelar timers
     _reconnectTimer?.cancel();
     _scanTimer?.cancel();
+
+    // Cancelar suscripciones de streams
+    _bluetoothStateSubscription?.cancel();
+    _scanResultsSubscription?.cancel();
+
+    // Desconectar dispositivo
     _disconnect();
-    _obstacleStreamController.close();
-    _connectionStateController.close();
+
+    // Cerrar controllers de streams
+    if (!_obstacleStreamController.isClosed) {
+      _obstacleStreamController.close();
+    }
+    if (!_connectionStateController.isClosed) {
+      _connectionStateController.close();
+    }
+
     super.dispose();
   }
 }

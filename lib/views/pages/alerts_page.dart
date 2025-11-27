@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/data/notifiers.dart';
-import 'package:safewalk/views/pages/settings_alerts_page.dart';
+import 'package:safewalk/views/pages/salerts_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AlertsPage extends StatefulWidget {

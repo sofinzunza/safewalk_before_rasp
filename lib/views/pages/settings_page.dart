@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/views/pages/account_page.dart';
+import 'package:safewalk/views/pages/language_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -66,9 +67,14 @@ class SettingsPage extends StatelessWidget {
                     title: const Text('Lenguaje'),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
-                      ScaffoldMessenger.of(
+                      Navigator.push(
                         context,
-                      ).showSnackBar(const SnackBar(content: Text('Lenguaje')));
+                        MaterialPageRoute(
+                          builder: (context) {
+                            return LanguagePage();
+                          },
+                        ),
+                      );
                     },
                   ),
                   ListTile(

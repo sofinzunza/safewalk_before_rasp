@@ -368,27 +368,44 @@ class ObstacleAlertService extends ChangeNotifier {
 
       // Calcular patrón de vibración según prioridad
       final priority = obstacleData.getPriority();
-      final intensity = _currentConfig!.vibrationIntensity.round();
+
+      // Mapear intensidad del slider (0-100) a amplitud real (128-255)
+      // Mínimo 128 (50% de 255) para que sea perceptible, máximo 255 (100%)
+      final sliderValue = _currentConfig!.vibrationIntensity;
+      final intensity = (128 + (sliderValue / 100.0 * 127)).round().clamp(
+        128,
+        255,
+      );
 
       List<int> pattern;
+      List<int> intensities;
+
       switch (priority) {
         case AlertPriority.critical:
-          pattern = [0, 500, 100, 500, 100, 500]; // 3 pulsos largos
+          // 4 pulsos muy largos e intensos con pausas cortas
+          pattern = [0, 800, 150, 800, 150, 800, 150, 800];
+          intensities = [intensity, 0, intensity, 0, intensity, 0, intensity];
           break;
         case AlertPriority.high:
-          pattern = [0, 300, 100, 300]; // 2 pulsos medianos
+          // 3 pulsos largos con pausas cortas
+          pattern = [0, 600, 150, 600, 150, 600];
+          intensities = [intensity, 0, intensity, 0, intensity];
           break;
         case AlertPriority.medium:
-          pattern = [0, 200]; // 1 pulso corto
+          // 2 pulsos medianos
+          pattern = [0, 400, 100, 400];
+          intensities = [intensity, 0, intensity];
           break;
         case AlertPriority.low:
-          pattern = [0, 100]; // 1 pulso muy corto
+          // 1 pulso corto
+          pattern = [0, 250];
+          intensities = [intensity];
           break;
       }
 
       // Ejecutar vibración
       if (await Vibration.hasAmplitudeControl()) {
-        await Vibration.vibrate(pattern: pattern, intensities: [intensity]);
+        await Vibration.vibrate(pattern: pattern, intensities: intensities);
       } else {
         await Vibration.vibrate(pattern: pattern);
       }

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/views/widgets/buttomimage_widget.dart';
 import 'package:safewalk/views/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -14,8 +16,12 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  String _currentEmail = '';
+  String _currentPhone = '';
 
   @override
   void initState() {
@@ -23,12 +29,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _loadCurrentUserData();
   }
 
-  void _loadCurrentUserData() {
+  Future<void> _loadCurrentUserData() async {
     // Cargar datos actuales del usuario
     final user = authService.value.currentUser;
     if (user != null) {
-      _emailCtrl.text = user.email ?? '';
-      // El teléfono se puede cargar desde Firestore o SharedPreferences si lo tienes guardado
+      _currentEmail = user.email ?? '';
+      _emailCtrl.text = _currentEmail;
+
+      // Cargar teléfono desde SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      _currentPhone = prefs.getString('user_phone') ?? '';
+      _phoneCtrl.text = _currentPhone;
     }
   }
 
@@ -36,6 +47,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void dispose() {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -43,14 +55,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // Validar formulario primero
     if (!_formKey.currentState!.validate()) return;
 
-    // Validar que al menos un campo esté lleno
     final emailText = _emailCtrl.text.trim();
     final phoneText = _phoneCtrl.text.trim();
+    final passwordText = _passwordCtrl.text.trim();
 
-    if (emailText.isEmpty && phoneText.isEmpty) {
+    // Verificar si hay cambios
+    final emailChanged = emailText.isNotEmpty && emailText != _currentEmail;
+    final phoneChanged = phoneText.isNotEmpty && phoneText != _currentPhone;
+
+    if (!emailChanged && !phoneChanged) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Debes completar al menos un campo para actualizar'),
+          content: Text('No hay cambios para actualizar'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      return;
+    }
+
+    // Si va a cambiar el email, requerir contraseña
+    if (emailChanged && passwordText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes ingresar tu contraseña para cambiar el correo'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -63,46 +90,74 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final user = authService.value.currentUser;
       if (user == null) throw Exception('Usuario no autenticado');
 
-      bool hasUpdates = false;
       List<String> updatedFields = [];
 
-      // Actualizar email solo si está lleno y es diferente al actual
-      if (emailText.isNotEmpty && emailText != user.email) {
+      // Actualizar email
+      if (emailChanged) {
+        // Reautenticar usuario antes de cambiar email
+        final credential = EmailAuthProvider.credential(
+          email: _currentEmail,
+          password: passwordText,
+        );
+        await user.reauthenticateWithCredential(credential);
+
+        // Ahora sí actualizar el email
         await user.verifyBeforeUpdateEmail(emailText);
-        hasUpdates = true;
+
         updatedFields.add('correo electrónico');
       }
 
-      // Actualizar teléfono solo si está lleno (aquí puedes agregar Firestore)
-      if (phoneText.isNotEmpty) {
-        hasUpdates = true;
+      // Actualizar teléfono en SharedPreferences
+      if (phoneChanged) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_phone', phoneText);
         updatedFields.add('teléfono');
       }
 
       if (mounted) {
-        if (hasUpdates) {
-          String message =
-              'Se actualizó exitosamente: ${updatedFields.join(' y ')}';
-          if (updatedFields.contains('correo electrónico')) {
-            message += '\n(Revisa tu email para verificar el nuevo correo)';
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          Navigator.pop(context);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No hay cambios para actualizar'),
-              backgroundColor: Colors.blue,
-            ),
-          );
+        String message =
+            'Se actualizó exitosamente: ${updatedFields.join(' y ')}';
+        if (emailChanged) {
+          message += '\n\nSe envió un correo de verificación a $emailText';
         }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'wrong-password':
+          errorMessage = 'Contraseña incorrecta';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'Este correo ya está en uso';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Correo electrónico inválido';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Por seguridad, debes cerrar sesión y volver a iniciar';
+          break;
+        default:
+          errorMessage = 'Error: ${e.message}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -219,7 +274,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     },
                     onChanged: (_) => setState(() {}),
                   ),
-                  const SizedBox(height: 180),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _passwordCtrl,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Contraseña actual (requerida para cambiar email)',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: KColors.tealChillon,
+                          width: 1.5,
+                        ),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 140),
                   CustomButton(
                     text: _isLoading ? 'Actualizando...' : 'Actualizar',
                     onPressed: _isLoading

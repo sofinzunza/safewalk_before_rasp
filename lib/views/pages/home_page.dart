@@ -33,6 +33,8 @@ class _HomePageState extends State<HomePage> {
   late BleService _bleService;
   late ObstacleAlertService _obstacleAlertService;
   bool _servicesInitialized = false;
+  Timer? _obstacleAlertsTimer;
+  StreamSubscription? _connectionStateSubscription;
 
   @override
   void initState() {
@@ -49,6 +51,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    // Cancelar timer
+    _obstacleAlertsTimer?.cancel();
+    // Cancelar suscripciones
+    _connectionStateSubscription?.cancel();
     // ✅ LIMPIAR servicios BLE
     if (_servicesInitialized) {
       _bleService.dispose();
@@ -61,7 +67,9 @@ class _HomePageState extends State<HomePage> {
   // ✅ NUEVO: Configurar listener para cambios en alertas específicas
   void _setupObstacleAlertsListener() {
     // Verificar cada 2 segundos si hay cambios en las alertas específicas
-    Timer.periodic(const Duration(seconds: 2), (timer) async {
+    _obstacleAlertsTimer = Timer.periodic(const Duration(seconds: 2), (
+      timer,
+    ) async {
       if (!mounted) {
         timer.cancel();
         return;
@@ -100,7 +108,9 @@ class _HomePageState extends State<HomePage> {
       _servicesInitialized = true;
 
       // Escuchar cambios de estado de conexión BLE REAL
-      _bleService.connectionStateStream.listen((state) {
+      _connectionStateSubscription = _bleService.connectionStateStream.listen((
+        state,
+      ) {
         if (mounted) {
           setState(() {
             bluetoothState = state;
