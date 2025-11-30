@@ -37,8 +37,24 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GIDClientID</key>
 	<string>1068399475131-rnsuujas0cr7ff8qlgb9f8gt60shme1h.apps.googleusercontent.com</string>
+	<key>GMSApiKey</key>
+	<string>AIzaSyA9SbLXwTei6VnUemhzBsolp-JOni0H66o</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>SafeWalk necesita acceso a Bluetooth para conectarse con tu gorro NaviCap y recibir alertas de obstáculos en tiempo real.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>SafeWalk usa Bluetooth para comunicarse con dispositivos NaviCap y proporcionar navegación asistida para personas con discapacidad visual.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SafeWalk necesita acceso a la ubicación para enviar tu ubicación en caso de emergencia.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SafeWalk necesita acceso continuo a la ubicación para compartir tu ubicación en tiempo real con tus contactos de emergencia cuando actives el botón SOS.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>SafeWalk necesita acceso continuo a la ubicación para monitorear tu ubicación y compartirla con contactos de emergencia cuando sea necesario.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -58,14 +74,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>SafeWalk necesita acceso a Bluetooth para conectarse con tu gorro NaviCap y recibir alertas de obstáculos en tiempo real.</string>
-	
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>SafeWalk usa Bluetooth para comunicarse con dispositivos NaviCap y proporcionar navegación asistida para personas con discapacidad visual.</string>
-	
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SafeWalk necesita acceso a la ubicación para detectar dispositivos NaviCap cercanos vía Bluetooth.</string>
-	
 </dict>
 </plist>
