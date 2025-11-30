@@ -7,6 +7,7 @@ environment:
   sdk: ^3.9.2
 
 dependencies:
+  cloud_firestore: ^6.1.0
   firebase_auth: ^6.1.0
   firebase_core: ^4.1.1
   flutter:
@@ -14,6 +15,10 @@ dependencies:
   flutter_blue_plus: ^2.0.0
   flutter_launcher_icons: ^0.14.4 
   flutter_tts: ^4.2.3
+  geocoding: ^4.0.0
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.14.0
+  google_maps_flutter_ios: ^2.15.7
   google_sign_in: ^7.2.0
   permission_handler: ^12.0.1
   shared_preferences: ^2.5.3

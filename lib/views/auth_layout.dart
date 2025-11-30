@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/views/auth_service.dart';
 import 'package:safewalk/views/pages/home_page.dart';
+import 'package:safewalk/views/pages/user_type_router.dart';
 import 'package:safewalk/views/pages/loading_page.dart';
-import 'package:safewalk/views/pages/welcome_page.dart';
 
 class AuthLayout extends StatelessWidget {
   const AuthLayout({super.key, this.pageIfNotConnected});
@@ -17,15 +17,18 @@ class AuthLayout extends StatelessWidget {
         return StreamBuilder(
           stream: authService.authStateChanges,
           builder: (context, snapshot) {
-            Widget widget;
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              widget = LoadingPage();
-            } else if (snapshot.hasData) {
-              widget = const HomePage();
-            } else {
-              widget = pageIfNotConnected ?? const WelcomePage();
+            // Si hay datos (usuario autenticado), mostrar página correspondiente
+            if (snapshot.hasData) {
+              return const UserTypeRouter();
             }
-            return widget;
+
+            // Si ya terminó de cargar y no hay usuario, mostrar página de login
+            if (snapshot.connectionState != ConnectionState.waiting) {
+              return pageIfNotConnected ?? const HomePage();
+            }
+
+            // Solo mostrar loading en el primer inicio (cuando no hay datos previos)
+            return const LoadingPage();
           },
         );
       },

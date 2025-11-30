@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:safewalk/data/constants.dart';
+import 'package:safewalk/data/models/user_model.dart';
+import 'package:safewalk/data/services/firestore_service.dart';
 import 'package:safewalk/views/auth_service.dart';
 import 'package:safewalk/views/pages/welcome_page.dart';
+import 'package:safewalk/views/pages/twelcome_page.dart';
 import 'package:safewalk/views/widgets/custombutton_widget.dart';
 import 'package:flutter/services.dart';
 
@@ -75,25 +78,57 @@ class _SigninEmailPageState extends State<SigninEmailPage> {
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
-      // Set the display name so HomePage can greet the user by name.
+
       final user = userCredential.user;
       if (user != null) {
+        // Actualizar el display name
         await user.updateDisplayName(_nameCtrl.text.trim());
-        // Reload to ensure the updated profile is available via currentUser
         await user.reload();
+
+        // Crear perfil en Firestore
+        final userType = _visuallyImpaired
+            ? UserType.visuallyImpaired
+            : UserType.emergencyContact;
+
+        final userModel = UserModel(
+          uid: user.uid,
+          email: _emailCtrl.text.trim().toLowerCase(),
+          name: _nameCtrl.text.trim(),
+          rut: _rutCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          userType: userType,
+          createdAt: DateTime.now(),
+        );
+
+        await firestoreService.createUserProfile(userModel);
       }
+
       if (!mounted) return;
-      // show success and navigate to home; AuthLayout could also react to authStateChanges
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Registro exitoso')));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const WelcomePage()),
-      );
+
+      // Navegar según el tipo de usuario
+      if (_visuallyImpaired) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const WelcomePage()),
+        );
+      } else {
+        // Usuario es contacto de emergencia (tutor)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TwelcomePage()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
-        errorMessage = e.message ?? 'There is a error';
+        errorMessage = e.message ?? 'Hubo un error';
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error al crear perfil: $e';
       });
     }
   }

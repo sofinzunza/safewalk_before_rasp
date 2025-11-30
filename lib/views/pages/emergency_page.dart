@@ -43,7 +43,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8FC),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
@@ -84,7 +84,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
                   _saveBool(_sLocation, v);
                 },
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               ListTile(
                 title: const Text('Configuración de contactos de emergencia'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -99,6 +99,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
                   );
                 },
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

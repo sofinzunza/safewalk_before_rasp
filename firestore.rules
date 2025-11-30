@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función helper para verificar si el usuario está autenticado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Función helper para verificar si es el mismo usuario
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Función para verificar si solo se están modificando campos de relación
+    function onlyRelationFieldsChanged() {
+      let allowedFields = ['emergencyContactIds', 'linkedVisuallyImpairedIds', 'updatedAt'];
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return affectedKeys.hasOnly(allowedFields);
+    }
+    
+    // ========== USUARIOS ==========
+    match /users/{userId} {
+      // Permitir leer cualquier perfil si estás autenticado
+      // (necesario para buscar contactos de emergencia)
+      allow read: if isSignedIn();
+      
+      // Solo el dueño puede crear su propio perfil
+      allow create: if isOwner(userId);
+      
+      // Permitir actualizar si eres el dueño O si solo estás modificando campos de relación
+      allow update: if isOwner(userId) || 
+                      (isSignedIn() && onlyRelationFieldsChanged());
+      
+      // No permitir eliminar perfiles
+      allow delete: if false;
+    }
+    
+    // ========== EVENTOS DE EMERGENCIA ==========
+    match /emergency_events/{eventId} {
+      // Permitir leer eventos si eres el usuario o uno de los contactos notificados
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.uid in resource.data.notifiedContactIds
+      );
+      
+      // Permitir crear eventos si estás autenticado
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Permitir actualizar solo si eres el dueño o un contacto notificado
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.uid in resource.data.notifiedContactIds
+      );
+      
+      // No permitir eliminar
+      allow delete: if false;
+    }
+  }
+}

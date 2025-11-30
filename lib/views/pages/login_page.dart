@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/views/auth_service.dart';
 import 'package:safewalk/views/google_auth.dart';
-import 'package:safewalk/views/pages/home_page.dart';
+import 'package:safewalk/views/pages/user_type_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:safewalk/views/pages/recover_password.dart';
 import 'package:safewalk/views/pages/signin_page.dart';
@@ -147,10 +147,12 @@ class _LoginPageState extends State<LoginPage> {
                         email: email,
                         password: password,
                       );
-                      // on success, navigate to HomePage (auth listener may also handle this)
+                      // on success, navigate to UserTypeRouter
                       if (!mounted) return;
                       navigator.pushReplacement(
-                        MaterialPageRoute(builder: (_) => const HomePage()),
+                        MaterialPageRoute(
+                          builder: (_) => const UserTypeRouter(),
+                        ),
                       );
                     } on FirebaseAuthException catch (e) {
                       final msg = e.message ?? 'Error al iniciar sesión';
@@ -238,7 +240,7 @@ class _LoginPageState extends State<LoginPage> {
                       if (result) {
                         navigator.pushReplacement(
                           MaterialPageRoute(
-                            builder: (context) => const HomePage(),
+                            builder: (context) => const UserTypeRouter(),
                           ),
                         );
                       } else {

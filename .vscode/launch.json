@@ -20,6 +20,31 @@
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
+        },
+
+        // ---- iPhone físicos ----
+        {
+        "name": "safewalk - dilan wireless",
+        "request": "launch",
+        "type": "dart",
+        "deviceId": "00008140-000660243644801C"
+        },
+        {
+        "name": "safewalk - Sofia wireless",
+        "request": "launch",
+        "type": "dart",
+        "deviceId": "00008110-000C69591AFBA01E"
+        }
+    ],
+
+    // Configuración compuesta para lanzar varios a la vez
+    "compounds": [
+        {
+        "name": "safewalk - Ambos iPhone",
+        "configurations": [
+            "safewalk - dilan wireless",
+            "safewalk - Sofia wireless"
+        ]
         }
     ]
 }
