@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Shortcuts / Voice Commands Strings -->
+    <string name="sos_short">Activar SOS</string>
+    <string name="sos_long">Activar alerta de emergencia SOS</string>
+    
+    <string name="call_short">SOS y Llamar</string>
+    <string name="call_long">Activar emergencia y llamar a contacto</string>
+    
+    <string name="location_short">SOS con Ubicación</string>
+    <string name="location_long">Activar emergencia y compartir ubicación</string>
+</resources>

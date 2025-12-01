@@ -14,34 +14,74 @@ class LocationService {
   /// Iniciar compartir ubicación en tiempo real
   Future<bool> startSharingLocation(String userId) async {
     try {
-      // Verificar permisos
+      // Verificar si los servicios de ubicación están habilitados
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        developer.log('Servicios de ubicación desactivados');
+        developer.log(
+          '⚠️ Servicios de ubicación desactivados',
+          name: 'LocationService',
+        );
         return false;
       }
 
+      // Verificar y solicitar permisos
       LocationPermission permission = await Geolocator.checkPermission();
+      developer.log('Permiso actual: $permission', name: 'LocationService');
+
       if (permission == LocationPermission.denied) {
+        developer.log(
+          'Solicitando permisos de ubicación...',
+          name: 'LocationService',
+        );
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          developer.log('Permiso de ubicación denegado');
+          developer.log(
+            '❌ Permiso de ubicación denegado',
+            name: 'LocationService',
+          );
           return false;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        developer.log('Permiso de ubicación denegado permanentemente');
+        developer.log(
+          '❌ Permiso de ubicación denegado permanentemente',
+          name: 'LocationService',
+        );
         return false;
       }
 
-      // Obtener ubicación inicial
-      final position = await Geolocator.getCurrentPosition();
-      await firestoreService.updateUserLocation(
-        uid: userId,
-        lat: position.latitude,
-        lng: position.longitude,
+      developer.log(
+        '✅ Permisos otorgados, obteniendo ubicación...',
+        name: 'LocationService',
       );
+
+      // Obtener ubicación inicial con timeout
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+
+        developer.log(
+          '📍 Ubicación obtenida: ${position.latitude}, ${position.longitude}',
+          name: 'LocationService',
+        );
+
+        await firestoreService.updateUserLocation(
+          uid: userId,
+          lat: position.latitude,
+          lng: position.longitude,
+        );
+      } catch (e) {
+        developer.log(
+          '⚠️ Error obteniendo ubicación inicial: $e',
+          name: 'LocationService',
+        );
+        // Continuar de todos modos, el stream puede funcionar
+      }
 
       // Activar flag en Firestore
       await firestoreService.toggleLocationSharing(userId, true);
@@ -55,19 +95,35 @@ class LocationService {
       _locationSubscription =
           Geolocator.getPositionStream(
             locationSettings: locationSettings,
-          ).listen((Position position) {
-            firestoreService.updateUserLocation(
-              uid: userId,
-              lat: position.latitude,
-              lng: position.longitude,
-            );
-          });
+          ).listen(
+            (Position position) {
+              developer.log(
+                '📍 Ubicación actualizada: ${position.latitude}, ${position.longitude}',
+                name: 'LocationService',
+              );
+              firestoreService.updateUserLocation(
+                uid: userId,
+                lat: position.latitude,
+                lng: position.longitude,
+              );
+            },
+            onError: (error) {
+              developer.log(
+                '❌ Error en stream de ubicación: $error',
+                name: 'LocationService',
+              );
+            },
+          );
 
       _currentUserId = userId;
       _isSharing = true;
+      developer.log('✅ Compartir ubicación iniciado', name: 'LocationService');
       return true;
     } catch (e) {
-      developer.log('Error al iniciar compartir ubicación: $e');
+      developer.log(
+        '❌ Error al iniciar compartir ubicación: $e',
+        name: 'LocationService',
+      );
       return false;
     }
   }
@@ -88,22 +144,66 @@ class LocationService {
   /// Obtener ubicación actual una sola vez
   Future<Position?> getCurrentLocation() async {
     try {
+      // Verificar servicios
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return null;
+      if (!serviceEnabled) {
+        developer.log(
+          '⚠️ Servicios de ubicación desactivados',
+          name: 'LocationService',
+        );
+        return null;
       }
 
-      if (permission == LocationPermission.deniedForever) return null;
+      // Verificar permisos
+      LocationPermission permission = await Geolocator.checkPermission();
+      developer.log('Permiso actual: $permission', name: 'LocationService');
 
-      return await Geolocator.getCurrentPosition(
-        locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
+      if (permission == LocationPermission.denied) {
+        developer.log(
+          'Solicitando permisos de ubicación...',
+          name: 'LocationService',
+        );
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          developer.log(
+            '❌ Permiso de ubicación denegado',
+            name: 'LocationService',
+          );
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        developer.log(
+          '❌ Permiso de ubicación denegado permanentemente',
+          name: 'LocationService',
+        );
+        return null;
+      }
+
+      developer.log(
+        '✅ Permisos otorgados, obteniendo ubicación...',
+        name: 'LocationService',
       );
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      developer.log(
+        '✅ Ubicación obtenida: ${position.latitude}, ${position.longitude}',
+        name: 'LocationService',
+      );
+
+      return position;
     } catch (e) {
-      developer.log('Error al obtener ubicación: $e');
+      developer.log(
+        '❌ Error al obtener ubicación: $e',
+        name: 'LocationService',
+      );
       return null;
     }
   }

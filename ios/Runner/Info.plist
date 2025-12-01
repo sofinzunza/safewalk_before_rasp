@@ -51,6 +51,8 @@
 	<string>SafeWalk necesita acceso continuo a la ubicación para compartir tu ubicación en tiempo real con tus contactos de emergencia cuando actives el botón SOS.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>SafeWalk necesita acceso continuo a la ubicación para monitorear tu ubicación y compartirla con contactos de emergencia cuando sea necesario.</string>
+	<key>NSSiriUsageDescription</key>
+	<string>SafeWalk usa Siri para activar alertas de emergencia mediante comandos de voz como "Oye Siri, activa emergencia SafeWalk".</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

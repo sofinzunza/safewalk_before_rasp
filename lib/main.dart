@@ -4,11 +4,15 @@ import 'package:safewalk/data/notifiers.dart';
 import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/data/language_notifier.dart';
 import 'package:safewalk/data/services/notification_service.dart';
+import 'package:safewalk/data/services/voice_assistant_service.dart';
 import 'package:safewalk/views/pages/start_page.dart';
 import 'package:safewalk/views/auth_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+
+// Clave global para navegación desde comandos de voz
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +22,14 @@ void main() async {
 
   // Inicializar servicio de notificaciones
   await notificationService.initialize();
+
+  // Inicializar servicio de asistente de voz (Siri/Google Assistant)
+  await voiceAssistantService.initialize(
+    onEmergencyActivated: () {
+      // Navegar a la página de emergencia cuando se active por voz
+      navigatorKey.currentState?.pushNamed('/emergency');
+    },
+  );
 
   runApp(const MainApp());
 }
@@ -51,7 +63,7 @@ class _MainAppState extends State<MainApp> {
           valueListenable: localeNotifier,
           builder: (context, locale, child) {
             return MaterialApp(
-              navigatorKey: appNavigatorKey,
+              navigatorKey: navigatorKey,
               debugShowCheckedModeBanner: false,
               locale: locale,
               theme: ThemeData(

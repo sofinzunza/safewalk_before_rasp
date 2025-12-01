@@ -6,6 +6,7 @@ import 'package:safewalk/data/models/emergency_event_model.dart';
 import 'package:safewalk/data/services/firestore_service.dart';
 import 'package:safewalk/data/services/location_service.dart';
 import 'package:safewalk/data/services/notification_service.dart';
+import 'package:safewalk/data/services/phone_call_service.dart';
 import 'package:geocoding/geocoding.dart';
 import 'signal_painter.dart';
 
@@ -96,33 +97,54 @@ class _SosButtomState extends State<SosButtom>
         double? latitude;
         double? longitude;
         String? address;
+        bool locationObtained = false;
 
         if (widget.shouldSendLocation) {
-          await _speak('Enviando ubicación');
+          await _speak('Obteniendo ubicación');
 
-          final position = await locationService.getCurrentLocation();
-          if (position == null) {
-            throw Exception('No se pudo obtener la ubicación');
-          }
-
-          latitude = position.latitude;
-          longitude = position.longitude;
-
-          // Obtener dirección (opcional)
           try {
-            final placemarks = await placemarkFromCoordinates(
-              latitude,
-              longitude,
-            );
-            if (placemarks.isNotEmpty) {
-              final p = placemarks.first;
-              final parts = <String>[];
-              if ((p.street ?? '').isNotEmpty) parts.add(p.street!);
-              if ((p.locality ?? '').isNotEmpty) parts.add(p.locality!);
-              address = parts.join(', ');
+            final position = await locationService.getCurrentLocation();
+            if (position != null) {
+              latitude = position.latitude;
+              longitude = position.longitude;
+              locationObtained = true;
+
+              // Obtener dirección (opcional)
+              try {
+                final placemarks = await placemarkFromCoordinates(
+                  latitude,
+                  longitude,
+                );
+                if (placemarks.isNotEmpty) {
+                  final p = placemarks.first;
+                  final parts = <String>[];
+                  if ((p.street ?? '').isNotEmpty) parts.add(p.street!);
+                  if ((p.locality ?? '').isNotEmpty) parts.add(p.locality!);
+                  address = parts.join(', ');
+                }
+              } catch (e) {
+                debugPrint('Error obteniendo dirección: $e');
+              }
+            } else {
+              // No se pudo obtener ubicación, pero continuamos
+              debugPrint(
+                '⚠️ No se pudo obtener ubicación, continuando sin ella',
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'No se pudo obtener ubicación. Activa los permisos en Configuración para compartir tu ubicación.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
             }
           } catch (e) {
-            debugPrint('Error obteniendo dirección: $e');
+            debugPrint('Error al obtener ubicación: $e');
+            // Continuar sin ubicación
           }
         }
 
@@ -135,18 +157,19 @@ class _SosButtomState extends State<SosButtom>
           throw Exception('No tienes contactos de emergencia configurados');
         }
 
-        // Anunciar llamada si está habilitada
-        if (widget.shouldCallEmergency) {
-          await _speak('Llamando a contacto de emergencia');
+        // Anunciar llamada si está habilitada (se anuncia antes de llamar)
+        if (widget.shouldCallEmergency && contacts.first.phone != null) {
+          await _speak('Llamando a ${contacts.first.name}');
         }
 
-        // Crear evento de emergencia
+        // Crear evento de emergencia (con o sin ubicación)
         final event = EmergencyEventModel(
           id: '', // Se asignará automáticamente
           userId: currentUserId,
-          lat: latitude ?? 0.0, // Valor por defecto si no hay ubicación
-          lng: longitude ?? 0.0, // Valor por defecto si no hay ubicación
-          address: address,
+          lat: latitude ?? 0.0, // 0,0 si no hay ubicación
+          lng: longitude ?? 0.0, // 0,0 si no hay ubicación
+          address:
+              address ?? (locationObtained ? null : 'Ubicación no disponible'),
           status: EmergencyStatus.active,
           createdAt: DateTime.now(),
           notifiedContactIds: contacts.map((c) => c.uid).toList(),
@@ -175,35 +198,83 @@ class _SosButtomState extends State<SosButtom>
           userId: currentUserId,
         );
 
-        // Activar compartir ubicación en tiempo real solo si está habilitado
-        if (widget.shouldSendLocation) {
-          await locationService.startSharingLocation(currentUserId);
+        // Activar compartir ubicación en tiempo real solo si se obtuvo ubicación
+        if (widget.shouldSendLocation && locationObtained) {
+          final sharingStarted = await locationService.startSharingLocation(
+            currentUserId,
+          );
+          if (!sharingStarted) {
+            debugPrint(
+              '⚠️ No se pudo iniciar compartir ubicación en tiempo real',
+            );
+          }
+        }
+
+        // Realizar llamada automática al primer contacto de emergencia si está habilitado
+        bool callMade = false;
+        if (widget.shouldCallEmergency && contacts.isNotEmpty) {
+          final firstContact = contacts.first;
+          if (firstContact.phone != null && firstContact.phone!.isNotEmpty) {
+            debugPrint('📞 Realizando llamada a: ${firstContact.name}');
+            callMade = await phoneCallService.makePhoneCall(
+              firstContact.phone!,
+            );
+            if (callMade) {
+              debugPrint('✅ Llamada iniciada a ${firstContact.name}');
+            } else {
+              debugPrint('❌ No se pudo iniciar llamada a ${firstContact.name}');
+            }
+          } else {
+            debugPrint(
+              '⚠️ El contacto ${firstContact.name} no tiene número telefónico configurado',
+            );
+          }
         }
 
         if (!mounted) return;
 
         String statusMessage =
-            'Emergencia activada - ${contacts.length} contacto(s) notificado(s)';
-        if (widget.shouldSendLocation && widget.shouldCallEmergency) {
-          statusMessage += '\nUbicación y llamada activadas';
-        } else if (widget.shouldSendLocation) {
-          statusMessage += '\nUbicación activada';
-        } else if (widget.shouldCallEmergency) {
-          statusMessage += '\nLlamada activada';
+            '🚨 Emergencia activada - ${contacts.length} contacto(s) notificado(s)';
+
+        if (locationObtained) {
+          if (widget.shouldCallEmergency) {
+            if (callMade) {
+              statusMessage +=
+                  '\n📍 Ubicación compartida | 📞 Llamando a ${contacts.first.name}';
+            } else {
+              statusMessage +=
+                  '\n📍 Ubicación compartida | ⚠️ No se pudo llamar';
+            }
+          } else {
+            statusMessage += '\n📍 Ubicación compartida';
+          }
+        } else {
+          if (widget.shouldCallEmergency) {
+            if (callMade) {
+              statusMessage +=
+                  '\n⚠️ Sin ubicación | 📞 Llamando a ${contacts.first.name}';
+            } else {
+              statusMessage += '\n⚠️ Sin ubicación | ⚠️ No se pudo llamar';
+            }
+          } else {
+            statusMessage += '\n⚠️ Ubicación no disponible';
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(statusMessage),
-            backgroundColor: Colors.red[600],
-            duration: const Duration(seconds: 3),
+            backgroundColor: locationObtained
+                ? Colors.red[600]
+                : Colors.orange[700],
+            duration: const Duration(seconds: 4),
           ),
         );
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('❌ Error: ${e.toString()}'),
             backgroundColor: Colors.red[800],
             duration: const Duration(seconds: 4),
           ),

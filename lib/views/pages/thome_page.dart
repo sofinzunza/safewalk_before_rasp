@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'package:safewalk/data/services/firestore_service.dart';
 import 'package:safewalk/data/services/notification_service.dart';
 import 'tlocation_page.dart';
@@ -27,6 +28,9 @@ class _TwelcomePageState extends State<TwelcomePage> {
 
   int _currentPage = 0; // 0=Home, 1=Mapa, 2=Config
 
+  // StreamSubscription para cancelarlo en dispose
+  StreamSubscription<List<Map<String, dynamic>>>? _notificationSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -34,34 +38,43 @@ class _TwelcomePageState extends State<TwelcomePage> {
     _setupNotificationListener();
   }
 
+  @override
+  void dispose() {
+    // Cancelar la suscripción al stream para evitar memory leaks
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
   void _setupNotificationListener() {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
 
     // Escuchar notificaciones en tiempo real
-    firestoreService.watchNotifications(currentUserId).listen((notifications) {
-      if (!mounted) return;
+    _notificationSubscription = firestoreService
+        .watchNotifications(currentUserId)
+        .listen((notifications) {
+          if (!mounted) return;
 
-      // Mostrar cada notificación nueva
-      for (final notification in notifications) {
-        if (notification['type'] == 'emergency_alert') {
-          // Mostrar notificación local
-          notificationService.showEmergencyNotification(
-            userName: notification['userName'] ?? 'Un usuario',
-            userId: notification['userId'] ?? '',
-          );
+          // Mostrar cada notificación nueva
+          for (final notification in notifications) {
+            if (notification['type'] == 'emergency_alert') {
+              // Mostrar notificación local
+              notificationService.showEmergencyNotification(
+                userName: notification['userName'] ?? 'Un usuario',
+                userId: notification['userId'] ?? '',
+              );
 
-          // Mostrar diálogo en la app
-          _showEmergencyDialog(notification);
+              // Mostrar diálogo en la app
+              _showEmergencyDialog(notification);
 
-          // Marcar como leída
-          firestoreService.markNotificationAsRead(
-            currentUserId,
-            notification['id'],
-          );
-        }
-      }
-    });
+              // Marcar como leída
+              firestoreService.markNotificationAsRead(
+                currentUserId,
+                notification['id'],
+              );
+            }
+          }
+        });
   }
 
   void _showEmergencyDialog(Map<String, dynamic> notification) {

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Atajo principal: Activar SOS -->
+    <shortcut
+        android:shortcutId="emergency_sos"
+        android:enabled="true"
+        android:icon="@drawable/ic_emergency"
+        android:shortcutShortLabel="@string/sos_short"
+        android:shortcutLongLabel="@string/sos_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.sofia.safewalk"
+            android:targetClass="com.sofia.safewalk.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Atajo: Emergencia con llamada -->
+    <shortcut
+        android:shortcutId="emergency_call"
+        android:enabled="true"
+        android:icon="@drawable/ic_call_emergency"
+        android:shortcutShortLabel="@string/call_short"
+        android:shortcutLongLabel="@string/call_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.sofia.safewalk"
+            android:targetClass="com.sofia.safewalk.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Atajo: Emergencia con ubicación -->
+    <shortcut
+        android:shortcutId="emergency_location"
+        android:enabled="true"
+        android:icon="@drawable/ic_location_emergency"
+        android:shortcutShortLabel="@string/location_short"
+        android:shortcutLongLabel="@string/location_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.sofia.safewalk"
+            android:targetClass="com.sofia.safewalk.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>
