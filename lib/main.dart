@@ -3,6 +3,7 @@ import 'package:safewalk/data/constants.dart';
 import 'package:safewalk/data/notifiers.dart';
 import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/data/language_notifier.dart';
+import 'package:safewalk/data/services/notification_service.dart';
 import 'package:safewalk/views/pages/start_page.dart';
 import 'package:safewalk/views/auth_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +15,9 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await AlertUtils.initializeCrosswalkNotifier();
   await LanguageService.loadSavedLanguage();
+
+  // Inicializar servicio de notificaciones
+  await notificationService.initialize();
 
   runApp(const MainApp());
 }

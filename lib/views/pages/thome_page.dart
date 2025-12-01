@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:safewalk/data/services/firestore_service.dart';
+import 'package:safewalk/data/services/notification_service.dart';
 import 'tlocation_page.dart';
 import 'settings_page.dart';
 
@@ -28,6 +31,96 @@ class _TwelcomePageState extends State<TwelcomePage> {
   void initState() {
     super.initState();
     _loadPrefs();
+    _setupNotificationListener();
+  }
+
+  void _setupNotificationListener() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    // Escuchar notificaciones en tiempo real
+    firestoreService.watchNotifications(currentUserId).listen((notifications) {
+      if (!mounted) return;
+
+      // Mostrar cada notificación nueva
+      for (final notification in notifications) {
+        if (notification['type'] == 'emergency_alert') {
+          // Mostrar notificación local
+          notificationService.showEmergencyNotification(
+            userName: notification['userName'] ?? 'Un usuario',
+            userId: notification['userId'] ?? '',
+          );
+
+          // Mostrar diálogo en la app
+          _showEmergencyDialog(notification);
+
+          // Marcar como leída
+          firestoreService.markNotificationAsRead(
+            currentUserId,
+            notification['id'],
+          );
+        }
+      }
+    });
+  }
+
+  void _showEmergencyDialog(Map<String, dynamic> notification) {
+    final userName = notification['userName'] ?? 'Un usuario';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 32),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '🚨 ALERTA SOS',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¡$userName necesita ayuda!',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Ve la ubicación en tiempo real',
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navegar a la página de ubicación
+              setState(() => _currentPage = 1);
+              // Si necesitas pasar el userId específico:
+              // Puedes crear una nueva página o modificar TlocationPage
+            },
+            icon: const Icon(Icons.map),
+            label: const Text('Ver ubicación'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadPrefs() async {
@@ -69,7 +162,6 @@ class _TwelcomePageState extends State<TwelcomePage> {
         'Bienvenido${widget.nombre != null && widget.nombre!.trim().isNotEmpty ? ', ${widget.nombre!.trim()}' : ''}';
 
     final Color text = _isDark ? Colors.white : Colors.black87;
-    final Color subtext = _isDark ? Colors.white70 : Colors.black54;
 
     return Stack(
       children: [
@@ -111,10 +203,10 @@ class _TwelcomePageState extends State<TwelcomePage> {
                         width: 380,
                         height: 380,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
+                        errorBuilder: (context, error, stackTrace) => Icon(
                           Icons.person_pin_circle,
                           size: 160,
-                          color: _primary.withOpacity(.8),
+                          color: _primary,
                         ),
                       ),
                     ),
@@ -129,12 +221,8 @@ class _TwelcomePageState extends State<TwelcomePage> {
                           color: text,
                         ),
                       ),
-                      subtitle: Text(
-                        'Permite llamadas directas al activar una emergencia.',
-                        style: TextStyle(fontSize: 13, color: subtext),
-                      ),
                       secondary: Icon(Icons.call, color: text),
-                      activeColor: _primary,
+                      activeTrackColor: _primary,
                       value: _receiveSosCalls,
                       onChanged: (v) {
                         setState(() => _receiveSosCalls = v);
@@ -155,12 +243,8 @@ class _TwelcomePageState extends State<TwelcomePage> {
                           color: text,
                         ),
                       ),
-                      subtitle: Text(
-                        'Recibe notificaciones con ubicación y detalles.',
-                        style: TextStyle(fontSize: 13, color: subtext),
-                      ),
                       secondary: Icon(Icons.sms, color: text),
-                      activeColor: _primary,
+                      activeTrackColor: _primary,
                       value: _receiveSosMsgs,
                       onChanged: (v) {
                         setState(() => _receiveSosMsgs = v);

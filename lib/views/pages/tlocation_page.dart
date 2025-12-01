@@ -219,7 +219,8 @@ class _TlocationPageState extends State<TlocationPage> {
               : parts.join(', ');
         });
       }
-    } catch (_) {}
+    // ignore: empty_catches
+    } catch (e) {}
   }
 
   @override
@@ -373,17 +374,27 @@ class _TlocationPageState extends State<TlocationPage> {
                           mapType: MapType.normal,
                           liteModeEnabled: false,
                           // Tap → pantalla completa
-                          onTap: (_) async {
+                          onTap: (position) async {
                             await Navigator.of(context).push(
                               PageRouteBuilder(
                                 opaque: true,
                                 barrierColor: Colors.black,
-                                pageBuilder: (_, __, ___) => _FullscreenMapPage(
-                                  currentLatLng: _currentLatLng,
-                                  markers: _markers,
-                                ),
-                                transitionsBuilder: (_, anim, __, child) =>
-                                    FadeTransition(opacity: anim, child: child),
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        _FullscreenMapPage(
+                                          currentLatLng: _currentLatLng,
+                                          markers: _markers,
+                                        ),
+                                transitionsBuilder:
+                                    (
+                                      context,
+                                      animation,
+                                      secondaryAnimation,
+                                      child,
+                                    ) => FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
                               ),
                             );
                           },
@@ -490,7 +501,8 @@ class _FullscreenMapPageState extends State<_FullscreenMapPage> {
         setState(() => _liveLatLng = here);
         _controller?.animateCamera(CameraUpdate.newLatLng(here));
       });
-    } catch (_) {}
+    // ignore: empty_catches
+    } catch (e) {}
   }
 
   @override

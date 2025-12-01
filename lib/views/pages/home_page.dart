@@ -375,14 +375,20 @@ class _Switch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: Switch.adaptive(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: activeColor,
+    return Semantics(
+      label: title,
+      value: value ? 'Activado' : 'Desactivado',
+      toggled: value,
+      onTap: () => onChanged(!value),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: activeColor,
+        ),
       ),
     );
   }

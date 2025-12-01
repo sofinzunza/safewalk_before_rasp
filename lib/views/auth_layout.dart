@@ -17,18 +17,15 @@ class AuthLayout extends StatelessWidget {
         return StreamBuilder(
           stream: authService.authStateChanges,
           builder: (context, snapshot) {
-            // Si hay datos (usuario autenticado), mostrar página correspondiente
-            if (snapshot.hasData) {
-              return const UserTypeRouter();
+            Widget widget;
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              widget = LoadingPage();
+            } else if (snapshot.hasData) {
+              widget = const UserTypeRouter();
+            } else {
+              widget = pageIfNotConnected ?? const HomePage();
             }
-
-            // Si ya terminó de cargar y no hay usuario, mostrar página de login
-            if (snapshot.connectionState != ConnectionState.waiting) {
-              return pageIfNotConnected ?? const HomePage();
-            }
-
-            // Solo mostrar loading en el primer inicio (cuando no hay datos previos)
-            return const LoadingPage();
+            return widget;
           },
         );
       },

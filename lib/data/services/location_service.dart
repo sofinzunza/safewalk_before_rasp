@@ -100,7 +100,7 @@ class LocationService {
       if (permission == LocationPermission.deniedForever) return null;
 
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
       );
     } catch (e) {
       developer.log('Error al obtener ubicación: $e');

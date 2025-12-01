@@ -19,41 +19,54 @@ class WelcomePage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 25),
-              const Text(
-                'Bienvenido a SafeWalk!',
-                style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+              Semantics(
+                header: true,
+                label: 'Bienvenido a SafeWalk',
+                child: const Text(
+                  'Bienvenido a SafeWalk!',
+                  style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 60),
               Stack(alignment: Alignment.center, children: [BleButton()]),
               const SizedBox(height: 80),
-              const Text(
-                'Comencemos por enlazar tu\ngorro Navicap con la aplicación,\nactiva el Bluetooth de tu teléfono\npara conectarlo.',
-                textAlign: TextAlign.center,
-                style: KtextStyle.descriptionText,
+              Semantics(
+                label:
+                    'Comencemos por enlazar tu gorro Navicap con la aplicación. Activa el Bluetooth de tu teléfono para conectarlo.',
+                child: const Text(
+                  'Comencemos por enlazar tu\ngorro Navicap con la aplicación,\nactiva el Bluetooth de tu teléfono\npara conectarlo.',
+                  textAlign: TextAlign.center,
+                  style: KtextStyle.descriptionText,
+                ),
               ),
               const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) {
-                            return HomePage();
-                          },
+                  Semantics(
+                    button: true,
+                    label: 'Omitir configuración de Bluetooth',
+                    hint: 'Ir directamente a la pantalla principal',
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) {
+                              return HomePage();
+                            },
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Omitir',
+                        style: TextStyle(
+                          color: KColors.tealChillon,
+                          decoration: TextDecoration.underline,
+                          decorationColor: KColors.tealChillon,
+                          fontSize: 15,
                         ),
-                      );
-                    },
-                    child: const Text(
-                      'Omitir',
-                      style: TextStyle(
-                        color: KColors.tealChillon,
-                        decoration: TextDecoration.underline,
-                        decorationColor: KColors.tealChillon,
-                        fontSize: 15,
                       ),
                     ),
                   ),

@@ -225,6 +225,91 @@ class FirestoreService {
     return docRef.id;
   }
 
+  /// Notificar a contactos de emergencia
+  Future<void> notifyEmergencyContacts({
+    required String userId,
+    required String userName,
+    double? lat,
+    double? lng,
+  }) async {
+    try {
+      // Obtener contactos de emergencia del usuario
+      final userProfile = await getUserProfile(userId);
+      if (userProfile == null || userProfile.emergencyContactIds.isEmpty) {
+        developer.log('No hay contactos de emergencia para notificar');
+        return;
+      }
+
+      // Crear notificaciones para cada contacto
+      final batch = _firestore.batch();
+      final notificationData = {
+        'type': 'emergency_alert',
+        'title': '🚨 ALERTA SOS',
+        'body': '¡$userName necesita ayuda! Ve la ubicación en tiempo real',
+        'userId': userId,
+        'userName': userName,
+        'lat': lat,
+        'lng': lng,
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+      };
+
+      for (final contactId in userProfile.emergencyContactIds) {
+        final notificationRef = _firestore
+            .collection('users')
+            .doc(contactId)
+            .collection('notifications')
+            .doc();
+
+        batch.set(notificationRef, notificationData);
+      }
+
+      await batch.commit();
+
+      developer.log(
+        '✅ Notificaciones enviadas a ${userProfile.emergencyContactIds.length} contactos',
+        name: 'FirestoreService',
+      );
+    } catch (e) {
+      developer.log(
+        '❌ Error notificando contactos: $e',
+        name: 'FirestoreService',
+      );
+    }
+  }
+
+  /// Stream de notificaciones para un usuario
+  Stream<List<Map<String, dynamic>>> watchNotifications(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .where('read', isEqualTo: false)
+        .orderBy('timestamp', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        });
+  }
+
+  /// Marcar notificación como leída
+  Future<void> markNotificationAsRead(
+    String userId,
+    String notificationId,
+  ) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'read': true});
+  }
+
   /// Actualizar estado de emergencia
   Future<void> updateEmergencyStatus({
     required String eventId,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safewalk/data/constants.dart';
+import 'package:safewalk/data/alert_utils.dart';
 import 'package:safewalk/views/pages/home_page.dart';
 import 'package:safewalk/views/widgets/nextbutton_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,17 +13,14 @@ class SettingsWelcomePage extends StatefulWidget {
 }
 
 class _SettingsWelcomePageState extends State<SettingsWelcomePage> {
+  // Claves compartidas con alerts_page.dart
   static const _kVibration = 'vibration';
   static const _kSound = 'sound';
-
-  static const _kObstacles = 'alerts_obstacles';
-  static const _kSemaforo = 'estado_semaforo';
 
   bool vibration = false;
   bool sound = true;
 
-  bool aObstaculos = true;
-  bool eSemaforo = false;
+  bool aCrosswalkState = true;
 
   @override
   void initState() {
@@ -32,15 +30,22 @@ class _SettingsWelcomePageState extends State<SettingsWelcomePage> {
 
   Future<void> _loadPrefs() async {
     final p = await SharedPreferences.getInstance();
+    final crosswalkState = await AlertUtils.getCrosswalkAlertState();
+
     setState(() {
-      aObstaculos = p.getBool(_kObstacles) ?? aObstaculos;
-      eSemaforo = p.getBool(_kSemaforo) ?? eSemaforo;
+      vibration = p.getBool(_kVibration) ?? vibration;
+      sound = p.getBool(_kSound) ?? sound;
+      aCrosswalkState = crosswalkState;
     });
   }
 
   Future<void> _saveBool(String k, bool v) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(k, v);
+  }
+
+  Future<void> _saveCrosswalkState(bool v) async {
+    await AlertUtils.setCrosswalkAlertState(v);
   }
 
   @override
@@ -64,26 +69,39 @@ class _SettingsWelcomePageState extends State<SettingsWelcomePage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    onPressed: () => Navigator.pop(context),
+                  Semantics(
+                    button: true,
+                    label: 'Regresar',
+                    hint: 'Volver a la pantalla anterior',
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       children: [
-                        Text(
-                          'Comencemos a\nconfigurar tu gorro!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
+                        Semantics(
+                          header: true,
+                          label: 'Comencemos a configurar tu gorro',
+                          child: const Text(
+                            'Comencemos a\nconfigurar tu gorro!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        SizedBox(height: 20),
-                        Text(
-                          'Configura que tipo de alertas deseas recibir y de que, luego podras configurar más detalladamente',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 15, height: 1.35),
+                        const SizedBox(height: 20),
+                        Semantics(
+                          label:
+                              'Configura qué tipo de alertas deseas recibir y de qué. Luego podrás configurar más detalladamente.',
+                          child: Text(
+                            'Configura que tipo de alertas deseas recibir y de que, luego podras configurar más detalladamente',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 15, height: 1.35),
+                          ),
                         ),
                       ],
                     ),
@@ -132,29 +150,19 @@ class _SettingsWelcomePageState extends State<SettingsWelcomePage> {
                   const SizedBox(height: 16),
 
                   const Text(
-                    'Configura que alertas quieres\nrecibir :',
+                    'Configura que alertas quieres\nrecibir:',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 16),
                   _Switch(
-                    icon: Icons.warning_amber_rounded,
-                    title: 'Alertas de Obstáculos',
-                    value: aObstaculos,
+                    icon: Icons.traffic,
+                    title: 'Alertas de Estado de Semáforo Peatonal',
+                    value: aCrosswalkState,
                     activeColor: active,
-                    onChanged: (v) {
-                      setState(() => aObstaculos = v);
-                      _saveBool(_kObstacles, v);
-                    },
-                  ),
-                  _Switch(
-                    icon: Icons.traffic_rounded,
-                    title: 'Alertas de estado de semáforos peatonales',
-                    value: eSemaforo,
-                    activeColor: active,
-                    onChanged: (v) {
-                      setState(() => eSemaforo = v);
-                      _saveBool(_kSemaforo, v);
+                    onChanged: (v) async {
+                      setState(() => aCrosswalkState = v);
+                      await _saveCrosswalkState(v);
                     },
                   ),
                 ],
@@ -220,14 +228,20 @@ class _Switch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: Switch.adaptive(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: activeColor,
+    return Semantics(
+      label: title,
+      value: value ? 'Activado' : 'Desactivado',
+      toggled: value,
+      onTap: () => onChanged(!value),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: activeColor,
+        ),
       ),
     );
   }

@@ -59,7 +59,12 @@ class _EmergencyPageState extends State<EmergencyPage> {
                   height: 290,
                   child: Stack(
                     alignment: Alignment.center,
-                    children: [SosButtom()],
+                    children: [
+                      SosButtom(
+                        shouldSendLocation: sLocation,
+                        shouldCallEmergency: cEmergency,
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -6,7 +6,7 @@ import 'package:safewalk/data/models/user_model.dart';
 import 'package:safewalk/data/services/firestore_service.dart';
 import 'package:safewalk/views/auth_service.dart';
 import 'package:safewalk/views/pages/welcome_page.dart';
-import 'package:safewalk/views/pages/twelcome_page.dart';
+import 'package:safewalk/views/pages/thome_page.dart';
 import 'package:safewalk/views/widgets/custombutton_widget.dart';
 import 'package:flutter/services.dart';
 

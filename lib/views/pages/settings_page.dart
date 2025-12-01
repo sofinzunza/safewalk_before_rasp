@@ -55,15 +55,6 @@ class SettingsPage extends StatelessWidget {
                     },
                   ),
                   ListTile(
-                    title: const Text('Notificaciones'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Notificaciones')),
-                      );
-                    },
-                  ),
-                  ListTile(
                     title: const Text('Lenguaje'),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
@@ -75,15 +66,6 @@ class SettingsPage extends StatelessWidget {
                           },
                         ),
                       );
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('NaviCap'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(const SnackBar(content: Text('NaviCap')));
                     },
                   ),
                   ListTile(

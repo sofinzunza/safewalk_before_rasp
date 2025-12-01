@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:safewalk/data/models/user_model.dart';
 import 'package:safewalk/data/services/firestore_service.dart';
+import 'package:safewalk/views/pages/home_page.dart';
 import 'package:safewalk/views/pages/loading_page.dart';
-import 'package:safewalk/views/pages/welcome_page.dart';
-import 'package:safewalk/views/pages/twelcome_page.dart';
+import 'package:safewalk/views/pages/thome_page.dart';
 
 /// Routes users to the correct home page based on their UserType in Firestore
 class UserTypeRouter extends StatelessWidget {
@@ -29,7 +29,7 @@ class UserTypeRouter extends StatelessWidget {
         if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
           // If user doesn't have a Firestore profile yet (e.g., Google sign-in),
           // default to visuallyImpaired view
-          return const WelcomePage();
+          return const HomePage();
         }
 
         final userModel = snapshot.data!;
@@ -38,7 +38,7 @@ class UserTypeRouter extends StatelessWidget {
         if (userModel.userType == UserType.emergencyContact) {
           return const TwelcomePage();
         } else {
-          return const WelcomePage();
+          return const HomePage();
         }
       },
     );
