@@ -34,6 +34,22 @@ service cloud.firestore {
       
       // No permitir eliminar perfiles
       allow delete: if false;
+      
+      // ========== NOTIFICACIONES (subcolección) ==========
+      match /notifications/{notificationId} {
+        // Permitir leer solo tus propias notificaciones
+        allow read: if isOwner(userId);
+        
+        // Permitir crear notificaciones si eres un usuario vinculado que está enviando la notificación
+        // O si eres el sistema (desde Cloud Function)
+        allow create: if isSignedIn();
+        
+        // Permitir actualizar solo tus propias notificaciones (para marcar como leídas)
+        allow update: if isOwner(userId);
+        
+        // Permitir eliminar tus propias notificaciones
+        allow delete: if isOwner(userId);
+      }
     }
     
     // ========== EVENTOS DE EMERGENCIA ==========

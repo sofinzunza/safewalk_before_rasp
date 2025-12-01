@@ -3,7 +3,12 @@ import 'dart:developer' as developer;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:safewalk/data/notifiers.dart';
 import 'package:safewalk/data/services/firestore_service.dart';
+import 'package:safewalk/views/pages/tlocation_page.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Manejador de mensajes en segundo plano
 @pragma('vm:entry-point')
@@ -215,8 +220,36 @@ class NotificationService {
     // Aquí puedes navegar a una pantalla específica
     // Por ejemplo, si es una emergencia, navegar al mapa
     if (message.data['type'] == 'emergency_alert') {
-      // TODO: Navegar a la pantalla de ubicación en tiempo real
       developer.log('🚨 Abrir mapa de emergencia', name: 'NotificationService');
+
+      final double? lat =
+          double.tryParse(message.data['lat']?.toString() ?? '');
+      final double? lng =
+          double.tryParse(message.data['lng']?.toString() ?? '');
+      final String? userId = message.data['userId']?.toString();
+
+      void navigateToLiveLocation() {
+        final navigator = appNavigatorKey.currentState;
+        if (navigator == null) return;
+
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => TlocationPage(
+              lat: lat,
+              lng: lng,
+              userId: userId,
+            ),
+          ),
+        );
+      }
+
+      if (appNavigatorKey.currentState == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          navigateToLiveLocation();
+        });
+      } else {
+        navigateToLiveLocation();
+      }
     }
   }
 
@@ -229,7 +262,7 @@ class NotificationService {
 
     // Aquí puedes manejar la navegación según el payload
     if (response.payload != null && response.payload!.contains('emergency')) {
-      // TODO: Navegar a la pantalla de emergencia
+      selectedPageNotifier.value = 2;
       developer.log(
         '🚨 Abrir pantalla de emergencia',
         name: 'NotificationService',

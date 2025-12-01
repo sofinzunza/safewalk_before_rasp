@@ -51,6 +51,7 @@ class _MainAppState extends State<MainApp> {
           valueListenable: localeNotifier,
           builder: (context, locale, child) {
             return MaterialApp(
+              navigatorKey: appNavigatorKey,
               debugShowCheckedModeBanner: false,
               locale: locale,
               theme: ThemeData(
