@@ -34,6 +34,12 @@
         "request": "launch",
         "type": "dart",
         "deviceId": "00008110-000C69591AFBA01E"
+        },
+        {
+            "name": "safewalk - José",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "R5CXB02B96R"
         }
     ],
 

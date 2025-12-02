@@ -45,6 +45,9 @@ class _HomePageState extends State<HomePage> {
     // ✅ NUEVO: Escuchar cambios en alertas de semáforo desde otras páginas
     crosswalkAlertsNotifier.addListener(_onCrosswalkAlertsChanged);
 
+    // ✅ NUEVO: Escuchar cambios en configuración desde otras páginas
+    configurationChangedNotifier.addListener(_onConfigurationChanged);
+
     // ✅ NUEVO: Escuchar cambios en alertas específicas para actualizar switch atajo
     _setupObstacleAlertsListener();
   }
@@ -61,6 +64,7 @@ class _HomePageState extends State<HomePage> {
       _obstacleAlertService.dispose();
     }
     crosswalkAlertsNotifier.removeListener(_onCrosswalkAlertsChanged);
+    configurationChangedNotifier.removeListener(_onConfigurationChanged);
     super.dispose();
   }
 
@@ -306,10 +310,14 @@ class _HomePageState extends State<HomePage> {
                     setState(() => aObstaculos = v);
                     await _saveBool(_kObstacles, v);
 
-                    // ✅ NUEVO: Solo cambiar valores, no deshabilitar UI
+                    // ✅ Activar/desactivar alertas de obstáculos
                     await AlertUtils.setAllObstacleAlertsFromHome(v);
+
+                    // ✅ IMPORTANTE: Actualizar configuración BLE después del cambio
+                    await _onConfigurationChanged();
+
                     developer.log(
-                      '🏠 Switch obstáculos home: $v (atajo)',
+                      '🏠 Switch obstáculos home: $v → Configuración BLE actualizada',
                       name: 'HomePage',
                     );
                   },

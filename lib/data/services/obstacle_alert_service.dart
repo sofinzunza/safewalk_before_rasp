@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/obstacle_data.dart';
 import '../models/ble_config.dart';
 import 'ble_service.dart';
+import 'wake_lock_service.dart';
 
 /// Servicio para manejar alertas de obstáculos con TTS y vibración
 class ObstacleAlertService extends ChangeNotifier {
@@ -43,9 +44,12 @@ class ObstacleAlertService extends ChangeNotifier {
     // Suscribirse a datos de obstáculos
     _setupObstacleListener();
 
+    // ✅ Activar wake lock para recibir alertas con pantalla bloqueada
+    await WakeLockService.enable();
+
     _isInitialized = true;
     developer.log(
-      '✅ ObstacleAlertService inicializado',
+      '✅ ObstacleAlertService inicializado con wake lock activo',
       name: 'ObstacleAlertService',
     );
   }
@@ -500,6 +504,10 @@ class ObstacleAlertService extends ChangeNotifier {
   void dispose() {
     _obstacleSubscription?.cancel();
     _tts.stop();
+
+    // ✅ Desactivar wake lock al cerrar el servicio
+    WakeLockService.disable();
+
     super.dispose();
   }
 }

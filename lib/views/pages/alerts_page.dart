@@ -87,6 +87,12 @@ class _AlertsPageState extends State<AlertsPage> {
     await AlertUtils.notifyConfigurationChanged();
   }
 
+  // ✅ NUEVO: Notificar cambios a home_page para actualizar BLE
+  void _notifyConfigurationUpdate() {
+    // Disparar actualización global de configuración
+    AlertUtils.notifyConfigurationChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     final active = KColors.tealChillon; // color del switch/slider
@@ -140,9 +146,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Personas',
                     value: aPeople,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aPeople = v);
-                      _saveBool(_kPeople, v);
+                      await _saveBool(_kPeople, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -150,9 +157,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Escaleras',
                     value: aStairs,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aStairs = v);
-                      _saveBool(_kStairs, v);
+                      await _saveBool(_kStairs, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -160,9 +168,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Autos',
                     value: aCars,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aCars = v);
-                      _saveBool(_kCars, v);
+                      await _saveBool(_kCars, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -170,9 +179,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Motos',
                     value: aMotorcycles,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aMotorcycles = v);
-                      _saveBool(_kMotorcycles, v);
+                      await _saveBool(_kMotorcycles, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -180,9 +190,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Bicicletas',
                     value: aBikes,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aBikes = v);
-                      _saveBool(_kBikes, v);
+                      await _saveBool(_kBikes, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -190,9 +201,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Perros',
                     value: aDogs,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aDogs = v);
-                      _saveBool(_kDogs, v);
+                      await _saveBool(_kDogs, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -200,9 +212,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Árbol',
                     value: aTree,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aTree = v);
-                      _saveBool(_kTree, v);
+                      await _saveBool(_kTree, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -210,9 +223,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Puertas',
                     value: aDoor,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aDoor = v);
-                      _saveBool(_kDoor, v);
+                      await _saveBool(_kDoor, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                   _SwitchTile(
@@ -220,9 +234,10 @@ class _AlertsPageState extends State<AlertsPage> {
                     title: 'Alertas de Escaleras Mecánicas',
                     value: aEscalator,
                     activeColor: active,
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => aEscalator = v);
-                      _saveBool(_kEscalator, v);
+                      await _saveBool(_kEscalator, v);
+                      _notifyConfigurationUpdate();
                     },
                   ),
                 ],

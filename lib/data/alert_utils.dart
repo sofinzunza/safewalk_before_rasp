@@ -57,8 +57,11 @@ class AlertUtils {
   }
 
   static Future<void> notifyConfigurationChanged() async {
+    // Disparar notificación global para que home_page actualice el BLE
+    configurationChangedNotifier.value = DateTime.now().millisecondsSinceEpoch;
+
     developer.log(
-      '📤 Configuración actualizada y sincronizada',
+      '📤 Configuración actualizada y sincronizada → BLE será actualizado',
       name: 'AlertUtils',
     );
   }
